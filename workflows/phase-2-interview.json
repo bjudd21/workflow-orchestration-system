@@ -84,12 +84,7 @@
         "method": "GET",
         "url": "http://host.docker.internal:11434/api/tags",
         "options": {
-          "timeout": 5000,
-          "response": {
-            "response": {
-              "fullResponse": true
-            }
-          }
+          "timeout": 5000
         }
       }
     },
@@ -106,12 +101,12 @@
         "conditions": {
           "conditions": [
             {
-              "id": "check-status",
-              "leftValue": "={{ $json.statusCode }}",
-              "rightValue": 200,
+              "id": "check-models",
+              "leftValue": "={{ Array.isArray($json.models) }}",
+              "rightValue": true,
               "operator": {
-                "type": "number",
-                "operation": "equals"
+                "type": "boolean",
+                "operation": "true"
               }
             }
           ],
