@@ -1,0 +1,593 @@
+{
+  "name": "Phase 2 \u2014 PRD Interview",
+  "nodes": [
+    {
+      "id": "a1000000-0000-0000-0000-000000000001",
+      "name": "Webhook - Get Chat UI",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        100
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "prd-interview",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "a1000000-0000-0000-0000-000000000002",
+      "name": "Respond - Chat UI",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        400,
+        100
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!DOCTYPE html>\n<html>\n<head>\n  <title>PRD Interview</title>\n  <meta charset=\"utf-8\">\n  <style>\n    * { box-sizing: border-box; }\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }\n    h2 { color: #333; margin-bottom: 4px; }\n    .subtitle { color: #666; font-size: 14px; margin-bottom: 16px; }\n    .project-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }\n    .project-row label { font-size: 14px; font-weight: 600; }\n    .project-row input { border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; font-size: 14px; width: 200px; }\n    #messages { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 16px; height: 420px; overflow-y: auto; margin-bottom: 12px; }\n    .msg { margin-bottom: 12px; }\n    .user-msg { text-align: right; }\n    .user-msg .bubble { display: inline-block; background: #0071e3; color: white; padding: 8px 14px; border-radius: 16px 16px 4px 16px; max-width: 85%; font-size: 14px; }\n    .agent-msg .bubble { display: inline-block; background: #f0f0f0; color: #222; padding: 10px 14px; border-radius: 4px 16px 16px 16px; max-width: 90%; font-size: 14px; white-space: pre-wrap; word-break: break-word; }\n    .agent-label { font-size: 11px; color: #888; margin-bottom: 3px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }\n    .complete-banner { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; padding: 12px 16px; border-radius: 6px; margin-top: 8px; font-size: 14px; }\n    .error-banner { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 12px 16px; border-radius: 6px; margin-top: 8px; font-size: 14px; }\n    .input-row { display: flex; gap: 8px; }\n    #message-input { flex: 1; border: 1px solid #ccc; border-radius: 20px; padding: 10px 16px; font-size: 14px; outline: none; }\n    #message-input:focus { border-color: #0071e3; }\n    button { background: #0071e3; color: white; border: none; border-radius: 20px; padding: 10px 20px; font-size: 14px; cursor: pointer; white-space: nowrap; }\n    button:hover { background: #005bbf; }\n    button:disabled { background: #aaa; cursor: default; }\n    .thinking { color: #888; font-style: italic; font-size: 13px; }\n  </style>\n</head>\n<body>\n  <h2>PRD Interview</h2>\n  <p class=\"subtitle\">Answer questions to generate a complete requirements document for your project.</p>\n  <div class=\"project-row\">\n    <label for=\"project\">Project:</label>\n    <input id=\"project\" type=\"text\" placeholder=\"my-project\" value=\"test\">\n  </div>\n  <div id=\"messages\"></div>\n  <div class=\"input-row\">\n    <input id=\"message-input\" type=\"text\" placeholder=\"Type your response...\">\n    <button id=\"send-btn\" onclick=\"sendMessage()\">Send</button>\n  </div>\n\n  <script>\n    let done = false;\n\n    function addMsg(text, who) {\n      const box = document.getElementById('messages');\n      const wrap = document.createElement('div');\n      wrap.className = 'msg ' + (who === 'user' ? 'user-msg' : 'agent-msg');\n      if (who === 'agent') {\n        const lbl = document.createElement('div');\n        lbl.className = 'agent-label';\n        lbl.textContent = 'PRD Interviewer';\n        wrap.appendChild(lbl);\n      }\n      const b = document.createElement('div');\n      b.className = 'bubble';\n      b.textContent = text;\n      wrap.appendChild(b);\n      box.appendChild(wrap);\n      box.scrollTop = box.scrollHeight;\n    }\n\n    async function sendMessage() {\n      if (done) return;\n      const project = document.getElementById('project').value.trim().replace(/[^a-z0-9-]/gi, '-').toLowerCase() || 'default';\n      const inp = document.getElementById('message-input');\n      const msg = inp.value.trim();\n      if (!msg) return;\n      addMsg(msg, 'user');\n      inp.value = '';\n      document.getElementById('send-btn').disabled = true;\n      const thinking = document.createElement('div');\n      thinking.className = 'msg agent-msg';\n      thinking.innerHTML = '<div class=\"bubble thinking\">Thinking...</div>';\n      document.getElementById('messages').appendChild(thinking);\n      try {\n        const r = await fetch('/webhook/prd-interview-send', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({project, message: msg}) });\n        const d = await r.json();\n        thinking.remove();\n        if (d.error) {\n          const e = document.createElement('div');\n          e.className = 'error-banner';\n          e.textContent = 'Error: ' + d.error;\n          document.getElementById('messages').appendChild(e);\n        } else {\n          addMsg(d.response, 'agent');\n          if (d.complete) {\n            done = true;\n            inp.disabled = true;\n            document.getElementById('send-btn').disabled = true;\n            const banner = document.createElement('div');\n            banner.className = 'complete-banner';\n            banner.textContent = 'Interview complete! Handoff saved to: ' + d.handoff_path;\n            document.getElementById('messages').appendChild(banner);\n          } else {\n            document.getElementById('send-btn').disabled = false;\n            inp.focus();\n          }\n        }\n      } catch(e) {\n        thinking.remove();\n        addMsg('Network error: ' + e.message, 'agent');\n        document.getElementById('send-btn').disabled = false;\n      }\n    }\n\n    document.getElementById('message-input').addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });\n\n    window.onload = async () => {\n      const project = document.getElementById('project').value.trim().replace(/[^a-z0-9-]/gi, '-').toLowerCase() || 'default';\n      try {\n        const r = await fetch('/webhook/prd-interview-send', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({project, message: '__START__'}) });\n        const d = await r.json();\n        if (!d.error) addMsg(d.response, 'agent');\n        document.getElementById('send-btn').disabled = false;\n        document.getElementById('message-input').focus();\n      } catch(e) { addMsg('Failed to start interview: ' + e.message, 'agent'); }\n    };\n  </script>\n</body>\n</html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000003",
+      "name": "Webhook - Interview",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        400
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "prd-interview-send",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000004",
+      "name": "Code - Validate Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        400
+      ],
+      "parameters": {
+        "jsCode": "\nconst body = $input.first().json.body || $input.first().json;\nconst raw_project = (body.project || 'default').toString().trim();\nconst project = raw_project.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'default';\nconst message = (body.message || '').toString().trim();\n\nif (!message) {\n  throw new Error('message parameter is required');\n}\n\nconst workspace = `/home/node/workspace/${project}`;\nreturn [{\n  json: {\n    project,\n    message,\n    workspace_path: workspace,\n    state_path: `${workspace}/interview-state.json`,\n    handoff_path: `${workspace}/handoffs/002-prd-interview.md`\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000005",
+      "name": "HTTP Request - Ollama Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        700,
+        400
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "http://host.docker.internal:11434/api/tags",
+        "options": {
+          "timeout": 5000,
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000006",
+      "name": "IF - Ollama Reachable",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "check-status",
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000007",
+      "name": "Respond - Ollama Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        600
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"error\": \"Ollama is not reachable at host.docker.internal:11434. Ensure Ollama is running on the host machine.\", \"complete\": false }",
+        "options": {
+          "responseCode": 503
+        }
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000008",
+      "name": "Execute Command - Create Dirs",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        400
+      ],
+      "parameters": {
+        "command": "mkdir -p \"{{ $('Code - Validate Inputs').first().json.workspace_path }}/handoffs\" && echo OK"
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000009",
+      "name": "Execute Command - Read State",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        400
+      ],
+      "parameters": {
+        "command": "cat \"{{ $('Code - Validate Inputs').first().json.state_path }}\" 2>/dev/null || echo '{\"messages\":[],\"turn\":0}'"
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000010",
+      "name": "Execute Command - Read Prompt",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        400
+      ],
+      "parameters": {
+        "command": "{ cat /home/node/prompts/prd-development/prd-interviewer.md 2>/dev/null; echo ''; echo '---'; echo ''; cat /home/node/skills/prd/stakeholder-interview.md 2>/dev/null; echo ''; echo '---'; echo ''; cat /home/node/skills/prd/requirements-engineering.md 2>/dev/null; } | sed '/^---$/{ /^---$/{ N; /^---\\n---$/d; } }'"
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000011",
+      "name": "Code - Build Ollama Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        400
+      ],
+      "parameters": {
+        "jsCode": "\nconst inputs = $('Code - Validate Inputs').first().json;\nconst project = inputs.project;\nconst message = inputs.message;\n\n// Parse conversation state\nlet state;\ntry {\n  state = JSON.parse($('Execute Command - Read State').first().json.stdout || '{}');\n} catch(e) {\n  state = { messages: [], turn: 0 };\n}\nif (!Array.isArray(state.messages)) state.messages = [];\nif (typeof state.turn !== 'number') state.turn = 0;\n\n// Get system prompt (strip YAML frontmatter if present)\nlet systemPrompt = $('Execute Command - Read Prompt').first().json.stdout || '';\nsystemPrompt = systemPrompt.replace(/^---[\\s\\S]*?---\\n/, '').trim();\n\n// Handle start signal\nconst userContent = message === '__START__'\n  ? 'Please begin the interview. Start by introducing yourself briefly and asking your first question.'\n  : message;\n\n// Build messages array\nconst messages = [\n  { role: 'system', content: systemPrompt },\n  ...state.messages,\n  { role: 'user', content: userContent }\n];\n\nreturn [{\n  json: {\n    project,\n    message: userContent,\n    state,\n    messages,\n    state_path: inputs.state_path,\n    handoff_path: inputs.handoff_path,\n    model: 'qwen3.5:35b-a3b'\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000012",
+      "name": "HTTP Request - Ollama Chat",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2500,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/chat",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $json.model }}"
+            },
+            {
+              "name": "messages",
+              "value": "={{ $json.messages }}"
+            },
+            {
+              "name": "stream",
+              "value": "=false"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000013",
+      "name": "Code - Process Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2800,
+        400
+      ],
+      "parameters": {
+        "jsCode": "\nconst ollamaResponse = $input.first().json;\nconst prevData = $('Code - Build Ollama Request').first().json;\n\nconst responseText = ollamaResponse.message?.content || ollamaResponse.choices?.[0]?.message?.content || '';\nif (!responseText) throw new Error('Empty response from Ollama');\n\nconst isComplete = responseText.includes('INTERVIEW_COMPLETE');\n\n// Update state: append user message + agent response\nconst state = prevData.state || { messages: [], turn: 0 };\nstate.messages.push({ role: 'user', content: prevData.message });\nstate.messages.push({ role: 'assistant', content: responseText });\nstate.turn = (state.turn || 0) + 1;\n\nconst stateJson = JSON.stringify(state, null, 2);\nconst stateB64 = Buffer.from(stateJson).toString('base64');\n\n// Clean response for display (remove INTERVIEW_COMPLETE marker)\nconst displayResponse = responseText.replace(/\\nINTERVIEW_COMPLETE\\s*$/, '').replace(/INTERVIEW_COMPLETE\\s*$/, '').trim();\n\nreturn [{\n  json: {\n    project: prevData.project,\n    response: displayResponse,\n    full_response: responseText,\n    is_complete: isComplete,\n    turn: state.turn,\n    state_path: prevData.state_path,\n    handoff_path: prevData.handoff_path,\n    state_b64: stateB64,\n    messages: state.messages\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000014",
+      "name": "Execute Command - Write State",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        3100,
+        400
+      ],
+      "parameters": {
+        "command": "echo '{{ $json.state_b64 }}' | base64 -d > '{{ $json.state_path }}' && echo OK"
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000015",
+      "name": "IF - Interview Complete",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3400,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "check-complete",
+              "leftValue": "={{ $('Code - Process Response').first().json.is_complete }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000016",
+      "name": "Respond - Ongoing Turn",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        3700,
+        600
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ response: $(\"Code - Process Response\").first().json.response, complete: false, turn: $(\"Code - Process Response\").first().json.turn }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000017",
+      "name": "HTTP Request - Ollama Extraction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        4000,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/chat",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen3.5:27b"
+            },
+            {
+              "name": "messages",
+              "value": "={{ $json.extraction_messages }}"
+            },
+            {
+              "name": "stream",
+              "value": "=false"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000018",
+      "name": "Code - Format Handoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4300,
+        400
+      ],
+      "parameters": {
+        "jsCode": "\nconst extractionResponse = $input.first().json;\nconst processData = $('Code - Process Response').first().json;\nconst inputs = $('Code - Validate Inputs').first().json;\n\nconst extractedContent = extractionResponse.message?.content || extractionResponse.choices?.[0]?.message?.content || '';\nif (!extractedContent.trim()) throw new Error('Extraction model returned empty content');\n\n// Validate required sections\nconst required = [\n  'Coverage Summary',\n  'Problem Statement',\n  'Target Users',\n  'Core Functionality',\n  'Scope',\n  'Non-Functional',\n  'Compliance',\n  'Technical Constraints',\n  'Timeline'\n];\nconst missing = required.filter(s => !extractedContent.includes(s));\nif (missing.length > 3) {\n  throw new Error(`Handoff missing required sections: ${missing.join(', ')}`);\n}\n\nconst now = new Date().toISOString();\nconst project = processData.project;\n\nconst handoff = `---\nphase: prd-interview\ncompleted: ${now}\nagent: prd-interviewer\nproject: ${project}\nentry_point: greenfield\ncompliance_applicable: false\ncompliance_frameworks: []\ncoverage_complete: true\n---\n\n${extractedContent.trim()}\n`;\n\nconst handoffB64 = Buffer.from(handoff).toString('base64');\n\nreturn [{\n  json: {\n    project,\n    handoff_content: handoff,\n    handoff_b64: handoffB64,\n    handoff_path: inputs.handoff_path,\n    missing_sections: missing\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000019",
+      "name": "Execute Command - Write Handoff",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        4600,
+        400
+      ],
+      "parameters": {
+        "command": "echo '{{ $json.handoff_b64 }}' | base64 -d > '{{ $json.handoff_path }}' && echo OK"
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000020",
+      "name": "Respond - Interview Complete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        4900,
+        400
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ response: $(\"Code - Process Response\").first().json.response, complete: true, handoff_path: $(\"Code - Format Handoff\").first().json.handoff_path, project: $(\"Code - Format Handoff\").first().json.project }) }}",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "b1000000-0000-0000-0000-000000000021",
+      "name": "Code - Prepare Extraction",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3700,
+        400
+      ],
+      "parameters": {
+        "jsCode": "\nconst processData = $('Code - Process Response').first().json;\nconst messages = processData.messages || [];\n\n// Build transcript text\nconst transcript = messages\n  .map(m => m.role.toUpperCase() + ': ' + m.content)\n  .join('\\n\\n');\n\nconst extractionMessages = [\n  {\n    role: 'system',\n    content: 'You are a requirements extraction specialist. Extract all project requirements from the PRD interview transcript into a structured markdown document. Output ONLY the structured document \u2014 no preamble, no commentary, no meta-statements like \"Here is the extracted requirements\".'\n  },\n  {\n    role: 'user',\n    content: `Interview transcript:\\n\\n${transcript}\\n\\nExtract all requirements into this exact structure:\\n\\n## Coverage Summary\\n(Table showing which of the 8 coverage areas were addressed \u2014 mark each as \u2713 Covered, N/A, or Incomplete)\\n\\n## Problem Statement & Success Criteria\\n(What problem this solves, who is affected, measurable success criteria)\\n\\n## Target Users\\n(Primary and secondary users, their goals, skills, constraints)\\n\\n## Core Functionality\\n(Must-have features and user actions the system must support)\\n\\n## Scope & Boundaries\\n(What is in scope for MVP, what is out of scope, what is deferred)\\n\\n## Non-Functional Requirements\\n(Performance targets, security requirements, availability, data volumes)\\n\\n## Compliance\\n(Applicable compliance frameworks or \"None identified\")\\n\\n## Technical Constraints\\n(Existing tech stack, language/framework requirements, deployment environment)\\n\\n## Timeline & Resources\\n(Target delivery timeline, team size, budget constraints)\\n\\nBe specific. Use only information that was actually stated in the interview.`\n  }\n];\n\nreturn [{\n  json: {\n    extraction_messages: extractionMessages,\n    project: processData.project\n  }\n}];\n"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Get Chat UI": {
+      "main": [
+        [
+          {
+            "node": "Respond - Chat UI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Interview": {
+      "main": [
+        [
+          {
+            "node": "Code - Validate Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Validate Inputs": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Ollama Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Ollama Health": {
+      "main": [
+        [
+          {
+            "node": "IF - Ollama Reachable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Ollama Reachable": {
+      "main": [
+        [
+          {
+            "node": "Execute Command - Create Dirs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Ollama Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command - Create Dirs": {
+      "main": [
+        [
+          {
+            "node": "Execute Command - Read State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command - Read State": {
+      "main": [
+        [
+          {
+            "node": "Execute Command - Read Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command - Read Prompt": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Ollama Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build Ollama Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Ollama Chat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Ollama Chat": {
+      "main": [
+        [
+          {
+            "node": "Code - Process Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Process Response": {
+      "main": [
+        [
+          {
+            "node": "Execute Command - Write State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command - Write State": {
+      "main": [
+        [
+          {
+            "node": "IF - Interview Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Interview Complete": {
+      "main": [
+        [
+          {
+            "node": "Code - Prepare Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Ongoing Turn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Ollama Extraction": {
+      "main": [
+        [
+          {
+            "node": "Code - Format Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Format Handoff": {
+      "main": [
+        [
+          {
+            "node": "Execute Command - Write Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Command - Write Handoff": {
+      "main": [
+        [
+          {
+            "node": "Respond - Interview Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Prepare Extraction": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Ollama Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
