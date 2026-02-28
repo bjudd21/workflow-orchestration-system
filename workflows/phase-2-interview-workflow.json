@@ -1,0 +1,121 @@
+{
+  "name": "Phase 2 Interview Workflow",
+  "description": "Structured requirements gathering conversation for PRD development",
+  "version": "1.0.0",
+  "workflow_type": "interview",
+  "phase": 2,
+  "steps": [
+    {
+      "id": "interview-start",
+      "name": "Interview Start",
+      "description": "Begin structured requirements interview with stakeholder",
+      "agent": "prd-interviewer",
+      "skill_requirements": [
+        "stakeholder-interview",
+        "requirements-engineering"
+      ],
+      "timeout": 3600,
+      "max_retries": 3,
+      "conditions": {
+        "on_success": "interview-progress",
+        "on_failure": "interview-failed"
+      }
+    },
+    {
+      "id": "interview-progress",
+      "name": "Interview Progress",
+      "description": "Continue requirements gathering conversation",
+      "agent": "prd-interviewer",
+      "skill_requirements": [
+        "stakeholder-interview",
+        "requirements-engineering"
+      ],
+      "timeout": 1800,
+      "max_retries": 2,
+      "conditions": {
+        "on_success": "coverage-check",
+        "on_failure": "interview-failed"
+      }
+    },
+    {
+      "id": "coverage-check",
+      "name": "Coverage Check",
+      "description": "Verify all requirements coverage areas are addressed",
+      "agent": "prd-interviewer",
+      "skill_requirements": [
+        "requirements-engineering"
+      ],
+      "timeout": 300,
+      "max_retries": 1,
+      "conditions": {
+        "on_success": "interview-complete",
+        "on_failure": "coverage-failed"
+      }
+    },
+    {
+      "id": "interview-complete",
+      "name": "Interview Complete",
+      "description": "Interview completed successfully with all coverage areas addressed",
+      "agent": "prd-interviewer",
+      "skill_requirements": [
+        "stakeholder-interview"
+      ],
+      "timeout": 60,
+      "max_retries": 0,
+      "conditions": {
+        "on_success": "transition-to-synthesis",
+        "on_failure": "interview-failed"
+      }
+    },
+    {
+      "id": "transition-to-synthesis",
+      "name": "Transition to Synthesis",
+      "description": "Transition to PRD Synthesis phase",
+      "agent": "workflow-engine",
+      "skill_requirements": [],
+      "timeout": 30,
+      "max_retries": 0,
+      "conditions": {
+        "on_success": "synthesis-start",
+        "on_failure": "transition-failed"
+      }
+    }
+  ],
+  "outputs": {
+    "interview_data": {
+      "type": "object",
+      "description": "Structured interview data collected during conversation",
+      "required_fields": [
+        "problem_statement",
+        "success_criteria",
+        "users",
+        "functionality",
+        "scope",
+        "non_functional_requirements",
+        "compliance",
+        "technical_constraints",
+        "timeline_resources"
+      ]
+    },
+    "coverage_status": {
+      "type": "boolean",
+      "description": "Whether all coverage areas were addressed"
+    },
+    "completion_signal": {
+      "type": "string",
+      "description": "Completion signal indicating interview is finished"
+    }
+  },
+  "metadata": {
+    "phase": 2,
+    "workflow_category": "requirements-gathering",
+    "required_skills": [
+      "stakeholder-interview",
+      "requirements-engineering"
+    ],
+    "transition_target": "phase-3-prd-synthesis",
+    "dependencies": [
+      "phase-1-analysis"
+    ]
+  }
+}
