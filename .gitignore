@@ -1,0 +1,31 @@
+# Environment and secrets
+.env
+
+# n8n persistent data (managed by Docker volume, not committed)
+n8n-data/
+
+# Project workspace artifacts (generated at runtime)
+workspace/*/handoffs/
+workspace/*/tasks/
+workspace/*/diagrams/
+workspace/*/interview-state.json
+workspace/*/config/decisions.json
+workspace/*/config/project.json
+
+# Keep global config templates but ignore generated config
+workspace/config/models.json
+workspace/config/agents.json
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: workflow-orchestration-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # n8n core config
+      - N8N_BASIC_AUTH_ACTIVE=${N8N_BASIC_AUTH_ACTIVE:-true}
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD:-changeme}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY:-change-this-to-a-random-string}
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - GENERIC_TIMEZONE=${TIMEZONE:-America/New_York}
+
+      # Webhook config — increase timeout for Ollama inference (FR-8.4)
+      - N8N_DEFAULT_TIMEOUT=300
+      - WEBHOOK_TIMEOUT=300
+
+      # Execution settings — keep history for debugging
+      - EXECUTIONS_DATA_SAVE_ON_ERROR=all
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
+      - EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=true
+      - EXECUTIONS_DATA_PRUNE=true
+      - EXECUTIONS_DATA_MAX_AGE=168  # 7 days
+
+      # Ollama endpoint — accessible from container via Docker host networking
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_SPEED_MODEL=${OLLAMA_SPEED_MODEL:-qwen3.5:35b-a3b}
+      - OLLAMA_QUALITY_MODEL=${OLLAMA_QUALITY_MODEL:-qwen3.5:27b}
+
+      # Full MVP API providers (uncomment when needed)
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      # - AWS_REGION=${AWS_REGION:-us-east-1}
+      # - OPENAI_COMPATIBLE_BASE_URL=${OPENAI_COMPATIBLE_BASE_URL:-}
+      # - OPENAI_COMPATIBLE_API_KEY=${OPENAI_COMPATIBLE_API_KEY:-}
+    volumes:
+      # n8n persistent data (workflows, credentials, execution history)
+      - n8n-data:/home/node/.n8n
+
+      # Project workspace — mounted from host for easy file access and git operations
+      - ./workspace:/home/node/workspace
+
+      # Workflows directory — for import/export
+      - ./workflows:/home/node/workflows
+
+      # Prompts and skills — read by n8n Code nodes during LLM call assembly
+      - ./prompts:/home/node/prompts:ro
+      - ./skills:/home/node/skills:ro
+
+      # Handoff contracts — read by validation nodes
+      - ./contracts:/home/node/contracts:ro
+    extra_hosts:
+      # Ensure host.docker.internal resolves on Linux/WSL2
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  n8n-data:
+    name: workflow-orchestration-n8n-data
