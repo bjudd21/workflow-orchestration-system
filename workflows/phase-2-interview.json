@@ -203,22 +203,9 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/chat",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "={{ $json.model }}"
-            },
-            {
-              "name": "messages",
-              "value": "={{ $json.messages }}"
-            },
-            {
-              "name": "stream",
-              "value": "=false"
-            }
-          ]
-        },
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: $json.model, messages: $json.messages, stream: false }) }}",
         "options": {
           "timeout": 300000
         }
@@ -313,22 +300,9 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/chat",
         "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "qwen3.5:27b"
-            },
-            {
-              "name": "messages",
-              "value": "={{ $json.extraction_messages }}"
-            },
-            {
-              "name": "stream",
-              "value": "=false"
-            }
-          ]
-        },
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:27b\", messages: $json.extraction_messages, stream: false }) }}",
         "options": {
           "timeout": 300000
         }
