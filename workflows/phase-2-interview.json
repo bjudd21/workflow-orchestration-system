@@ -140,40 +140,40 @@
     {
       "id": "b1000000-0000-0000-0000-000000000008",
       "name": "Execute Command - Create Dirs",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1300,
         400
       ],
       "parameters": {
-        "command": "mkdir -p \"{{ $('Code - Validate Inputs').first().json.workspace_path }}/handoffs\" && echo OK"
+        "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\n\nconst inputs = $('Code - Validate Inputs').first().json;\nconst workspacePath = inputs.workspace_path;\nconst handoffDir = path.join(workspacePath, 'handoffs');\n\nfs.mkdirSync(handoffDir, { recursive: true });\n\nreturn [{ json: { created: handoffDir } }];\n"
       }
     },
     {
       "id": "b1000000-0000-0000-0000-000000000009",
       "name": "Execute Command - Read State",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1600,
         400
       ],
       "parameters": {
-        "command": "cat \"{{ $('Code - Validate Inputs').first().json.state_path }}\" 2>/dev/null || echo '{\"messages\":[],\"turn\":0}'"
+        "jsCode": "\nconst fs = require('fs');\n\nconst statePath = $('Code - Validate Inputs').first().json.state_path;\n\nlet stateJson = '{\"messages\":[],\"turn\":0}';\ntry {\n  if (fs.existsSync(statePath)) {\n    stateJson = fs.readFileSync(statePath, 'utf8');\n  }\n} catch(e) {\n  // return empty state if any error\n}\n\nreturn [{ json: { stdout: stateJson } }];\n"
       }
     },
     {
       "id": "b1000000-0000-0000-0000-000000000010",
       "name": "Execute Command - Read Prompt",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1900,
         400
       ],
       "parameters": {
-        "command": "{ cat /home/node/prompts/prd-development/prd-interviewer.md 2>/dev/null; echo ''; echo '---'; echo ''; cat /home/node/skills/prd/stakeholder-interview.md 2>/dev/null; echo ''; echo '---'; echo ''; cat /home/node/skills/prd/requirements-engineering.md 2>/dev/null; } | sed '/^---$/{ /^---$/{ N; /^---\\n---$/d; } }'"
+        "jsCode": "\nconst fs = require('fs');\n\nfunction readFile(p) {\n  try { return fs.readFileSync(p, 'utf8'); } catch(e) { return ''; }\n}\n\nconst promptPath = '/home/node/prompts/prd-development/prd-interviewer.md';\nconst skill1Path = '/home/node/skills/prd/stakeholder-interview.md';\nconst skill2Path = '/home/node/skills/prd/requirements-engineering.md';\n\nconst prompt = readFile(promptPath);\nconst skill1 = readFile(skill1Path);\nconst skill2 = readFile(skill2Path);\n\nconst combined = [prompt, skill1, skill2].filter(Boolean).join('\\n\\n---\\n\\n');\n\nreturn [{ json: { stdout: combined } }];\n"
       }
     },
     {
@@ -239,14 +239,14 @@
     {
       "id": "b1000000-0000-0000-0000-000000000014",
       "name": "Execute Command - Write State",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         3100,
         400
       ],
       "parameters": {
-        "command": "echo '{{ $json.state_b64 }}' | base64 -d > '{{ $json.state_path }}' && echo OK"
+        "jsCode": "\nconst fs = require('fs');\n\nconst processData = $('Code - Process Response').first().json;\nconst stateJson = Buffer.from(processData.state_b64, 'base64').toString('utf8');\n\nfs.writeFileSync(processData.state_path, stateJson, 'utf8');\n\nreturn [{ json: { written: processData.state_path } }];\n"
       }
     },
     {
@@ -343,14 +343,14 @@
     {
       "id": "b1000000-0000-0000-0000-000000000019",
       "name": "Execute Command - Write Handoff",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         4600,
         400
       ],
       "parameters": {
-        "command": "echo '{{ $json.handoff_b64 }}' | base64 -d > '{{ $json.handoff_path }}' && echo OK"
+        "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\n\nconst formatData = $('Code - Format Handoff').first().json;\nconst handoffContent = Buffer.from(formatData.handoff_b64, 'base64').toString('utf8');\n\n// Ensure directory exists\nfs.mkdirSync(path.dirname(formatData.handoff_path), { recursive: true });\nfs.writeFileSync(formatData.handoff_path, handoffContent, 'utf8');\n\nreturn [{ json: { written: formatData.handoff_path, project: formatData.project, handoff_path: formatData.handoff_path } }];\n"
       }
     },
     {
