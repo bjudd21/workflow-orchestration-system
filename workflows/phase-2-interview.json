@@ -187,7 +187,7 @@
         400
       ],
       "parameters": {
-        "jsCode": "\nconst inputs = $('Code - Validate Inputs').first().json;\nconst project = inputs.project;\nconst message = inputs.message;\n\n// Parse conversation state\nlet state;\ntry {\n  state = JSON.parse($('Execute Command - Read State').first().json.stdout || '{}');\n} catch(e) {\n  state = { messages: [], turn: 0 };\n}\nif (!Array.isArray(state.messages)) state.messages = [];\nif (typeof state.turn !== 'number') state.turn = 0;\n\n// Get system prompt (strip YAML frontmatter if present)\nlet systemPrompt = $('Execute Command - Read Prompt').first().json.stdout || '';\nsystemPrompt = systemPrompt.replace(/^---[\\s\\S]*?---\\n/, '').trim();\n\n// Handle start signal\nconst userContent = message === '__START__'\n  ? 'Please begin the interview. Start by introducing yourself briefly and asking your first question.'\n  : message;\n\n// Build messages array\nconst messages = [\n  { role: 'system', content: systemPrompt },\n  ...state.messages,\n  { role: 'user', content: userContent }\n];\n\nreturn [{\n  json: {\n    project,\n    message: userContent,\n    state,\n    messages,\n    state_path: inputs.state_path,\n    handoff_path: inputs.handoff_path,\n    model: 'qwen3.5:35b-a3b'\n  }\n}];\n"
+        "jsCode": "\nconst inputs = $('Code - Validate Inputs').first().json;\nconst project = inputs.project;\nconst message = inputs.message;\n\n// Parse conversation state\nlet state;\ntry {\n  state = JSON.parse($('Execute Command - Read State').first().json.stdout || '{}');\n} catch(e) {\n  state = { messages: [], turn: 0 };\n}\nif (!Array.isArray(state.messages)) state.messages = [];\nif (typeof state.turn !== 'number') state.turn = 0;\n\n// Get system prompt (strip YAML frontmatter if present)\nlet systemPrompt = $('Execute Command - Read Prompt').first().json.stdout || '';\nsystemPrompt = systemPrompt.replace(/^---[\\s\\S]*?---\\n/, '').trim();\n\n// Handle start signal\nconst userContent = message === '__START__'\n  ? 'Please begin the interview. Start by introducing yourself briefly and asking your first question.'\n  : message;\n\n// Build messages array\nconst messages = [\n  { role: 'system', content: systemPrompt },\n  ...state.messages,\n  { role: 'user', content: userContent }\n];\n\nreturn [{\n  json: {\n    project,\n    message: userContent,\n    state,\n    messages,\n    state_path: inputs.state_path,\n    handoff_path: inputs.handoff_path,\n    model: 'qwen3.5:35b'\n  }\n}];\n"
       }
     },
     {
@@ -302,7 +302,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ model: \"qwen3.5:27b\", messages: $json.extraction_messages, stream: false }) }}",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b\", messages: $json.extraction_messages, stream: false }) }}",
         "options": {
           "timeout": 300000
         }
