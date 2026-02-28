@@ -107,10 +107,16 @@
               "operator": {
                 "type": "boolean",
                 "operation": "true"
-              }
+              },
+              "options": {}
             }
           ],
-          "combinator": "and"
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
         },
         "options": {}
       }
@@ -263,10 +269,16 @@
               "operator": {
                 "type": "boolean",
                 "operation": "true"
-              }
+              },
+              "options": {}
             }
           ],
-          "combinator": "and"
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
         },
         "options": {}
       }
