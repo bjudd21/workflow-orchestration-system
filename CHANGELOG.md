@@ -7,8 +7,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### In Progress
-- Phase 3: PRD Synthesis workflow
 - Phase 4: Council Review workflow
+
+---
+
+## [0.3.0] — 2026-03-01
+
+### Added
+- Phase 3 PRD Synthesis workflow (`workflows/phase-3-prd-synthesis.json`) — fully working end-to-end
+  - GET webhook review UI at `/webhook/prd-synthesis`
+  - POST webhook for synthesize and approve actions at `/webhook/prd-synthesis-action`
+  - Ollama connectivity pre-check before LLM call
+  - PRD synthesized from interview handoff + (optional) analysis handoff
+  - Versioned PRD written to `workspace/{project}/tasks/prd-{project}-v{N}.md`
+  - Schema validation on approve: frontmatter, 7 required sections, FR count, NFR numeric targets, user story count, risk table rows
+  - On approve: handoff written to `workspace/{project}/handoffs/003-prd-refined.md`
+
+### Fixed
+- Switched PRD synthesis model from `qwen3.5:35b` (dense 23GB) to `qwen3.5:35b-a3b` (MoE 18GB) — dense model OOMs during long generation on RTX 4090 24GB (only ~1.9GB left for KV cache after model load)
+- Stripped thinking-mode preamble and markdown code fences from model output in `Code - Process Synthesis`
+- Fixed `IF - Action Is Approve` condition referencing `$json.action` (Ollama health response, no `action` field) — now uses `$('Code - Validate Inputs').first().json.action`
+- Updated section heading regex in validator to accept `#`, `##`, or `###` headings
 
 ---
 
