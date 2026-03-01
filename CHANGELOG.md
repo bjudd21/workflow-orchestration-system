@@ -12,6 +12,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.2.1] — 2026-03-01
+
+### Fixed
+- Corrected quality model from `qwen3.5:27b` to `qwen3.5:35b` (dense 23GB) — confirmed working on RTX 4090 24GB
+- Updated VRAM and throughput figures: speed model `qwen3.5:35b-a3b` is ~18GB MoE at ~40-60 tok/s; quality model `qwen3.5:35b` is ~23GB at ~24-32 tok/s
+- Updated all references across `.env.example`, `docker-compose.yml`, `setup.sh`, `README.md`, and agent prompt front-matter (`council-chair.md`, `prd-writer.md`)
+
+---
+
 ## [0.2.0] — 2026-03-01
 
 ### Added

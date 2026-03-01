@@ -1,7 +1,7 @@
 ---
 agent: prd-writer
 phase: 3
-model: quality (qwen3.5:27b)
+model: quality (qwen3.5:35b)
 skills:
   - skills/prd/requirements-engineering.md
   - skills/prd/gov-prd-requirements.md  # conditional: include when compliance frameworks identified in interview

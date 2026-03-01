@@ -65,12 +65,12 @@ Two models are used and **cannot run simultaneously** on a 24GB GPU:
 | Role | Model | VRAM | Used for |
 |------|-------|------|----------|
 | Speed | `qwen3.5:35b-a3b` | ~18GB | Interview turns, council reviewers |
-| Quality | `qwen3.5:27b` | ~18GB | PRD synthesis, council chair |
+| Quality | `qwen3.5:35b` | ~23GB | PRD synthesis, council chair |
 
 Pull both before running:
 ```bash
 ollama pull qwen3.5:35b-a3b
-ollama pull qwen3.5:27b
+ollama pull qwen3.5:35b
 ```
 
 The setup script handles this automatically.
