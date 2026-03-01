@@ -1,0 +1,1130 @@
+{
+  "id": "CouncilReview4",
+  "name": "Phase 4 \u2014 Council Review",
+  "description": "Runs PRD Council: 4 core reviewers (speed model) + chair (quality model). Handles user decisions and re-review gate.",
+  "active": true,
+  "nodes": [
+    {
+      "id": "webhook-ui",
+      "name": "Webhook - Get Review UI",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        14400,
+        6000
+      ],
+      "parameters": {
+        "path": "council-review",
+        "httpMethod": "GET",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "council-ui"
+    },
+    {
+      "id": "respond-ui",
+      "name": "Respond - Review UI",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        14700,
+        6000
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!DOCTYPE html>\n<html>\n<head><title>Council Review</title><meta charset=\"utf-8\"><script src=\"https://cdn.jsdelivr.net/npm/marked/marked.min.js\"></script><style>*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:1100px;margin:0 auto;padding:20px;background:#f5f5f5}h2{color:#333;margin-bottom:4px}.subtitle{color:#666;font-size:14px;margin-bottom:16px}.start-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}.start-row label{font-size:14px;font-weight:600;white-space:nowrap}.start-row input{border:1px solid #ccc;border-radius:4px;padding:6px 10px;font-size:14px;width:220px}button{padding:8px 16px;border:none;border-radius:6px;font-size:14px;cursor:pointer}.btn-primary{background:#0071e3;color:white}.btn-primary:hover{background:#005bb5}.btn-success{background:#28a745;color:white}.btn-success:hover{background:#218838}.btn-danger{background:#dc3545;color:white}.btn-danger:hover{background:#c82333}.btn-warn{background:#fd7e14;color:white}.btn-warn:hover{background:#e06500}button:disabled{opacity:.5;cursor:not-allowed}#review-area{background:white;border:1px solid #ddd;border-radius:8px;padding:24px;min-height:300px;margin:12px 0;display:none;line-height:1.6}#review-area h1,#review-area h2,#review-area h3{margin-top:24px}#review-area table{border-collapse:collapse;width:100%;margin:12px 0}#review-area td,#review-area th{border:1px solid #ddd;padding:6px 10px;font-size:13px;text-align:left}#review-area th{background:#f5f5f5;font-weight:600}#review-area pre{background:#f8f8f8;padding:12px;border-radius:4px;overflow-x:auto}#review-area code{font-size:13px}.controls{display:none;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-top:4px}.controls.show{display:flex}.meta{font-size:12px;color:#888;margin-bottom:4px;display:none}#revisions-wrap{display:none;flex-direction:column;gap:8px;width:100%;margin-top:4px}#revisions-wrap textarea{width:100%;height:120px;border:1px solid #ccc;border-radius:4px;padding:8px;font-size:14px;resize:vertical}#status{padding:10px 14px;border-radius:6px;margin:8px 0;font-size:14px;display:none}#status.info{background:#d1ecf1;color:#0c5460}#status.error{background:#f8d7da;color:#721c24}#status.ok{background:#d4edda;color:#155724}.spinner{display:inline-block;width:13px;height:13px;border:2px solid #aaa;border-top-color:#333;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:5px}@keyframes spin{to{transform:rotate(360deg)}}.gate-controls{display:none;gap:8px;margin-top:16px}.gate-controls.show{display:flex}</style></head>\n<body><h2>Council Review (Phase 4)</h2><p class=\"subtitle\">Run PRD Council: 4 core reviewers + Council Chair. Review takes 15-20 minutes.</p><div class=\"start-row\"><label>Project:</label><input type=\"text\" id=\"project\" placeholder=\"my-project-name\"><button class=\"btn-primary\" id=\"btn-start\" onclick=\"startReview()\">Start Council Review</button></div><div id=\"status\"></div><div class=\"meta\" id=\"meta\"></div><div id=\"review-area\"></div><div class=\"controls\" id=\"controls\"><button class=\"btn-success\" id=\"btn-accept\" onclick=\"showAccept()\">\u2713 Accept Recommendations</button><button class=\"btn-danger\" id=\"btn-reject\" onclick=\"rejectReview()\">\u2715 Reject Recommendations</button><div id=\"revisions-wrap\"><label style=\"font-weight:600\">Recommendations to apply (optional, one per line):</label><textarea id=\"revisions\" placeholder=\"Leave blank to accept verdict without PRD changes...\"></textarea><button class=\"btn-success\" onclick=\"submitAcceptance()\">Apply & Continue</button></div></div><div class=\"gate-controls\" id=\"gate\"><button class=\"btn-success\" onclick=\"gateDecision('PROCEED')\">\u2192 Proceed to Phase 5</button><button class=\"btn-warn\" onclick=\"gateDecision('RECONVENE')\">\u21ba Reconvene Council</button></div><script>let proj='',reviewNum=1;function setStatus(msg,type){const s=document.getElementById('status');s.style.display='block';s.className=type;s.innerHTML=msg}function setLoading(on){['btn-start','btn-accept','btn-reject'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=on})}function showReview(text,reviewNumber,project,verdict){reviewNum=reviewNumber;proj=project;document.getElementById('review-area').style.display='block';document.getElementById('review-area').innerHTML=marked.parse(text);document.getElementById('controls').className='controls show';const m=document.getElementById('meta');m.style.display='block';m.textContent='Review r'+reviewNumber+' \u2014 '+project+' \u2014 Verdict: '+verdict;document.getElementById('revisions-wrap').style.display='none';document.getElementById('revisions').value=''}async function post(body){const res=await fetch('/webhook/council-review-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return res.json()}async function startReview(){proj=document.getElementById('project').value.trim().toLowerCase().replace(/\\s+/g,'-');if(!proj){setStatus('Enter a project name.','error');return}setStatus('<span class=\"spinner\"></span> Running council \u2014 4 reviewers + chair. Takes 15-20 min\u2026','info');setLoading(true);try{const d=await post({project:proj,action:'review'});if(d.error){setStatus('Error: '+d.error,'error');return}showReview(d.review_text,d.review_number,d.project,d.verdict);setStatus('Council r'+d.review_number+' complete. Verdict: '+d.verdict+'. Accept or reject.','ok')}catch(e){setStatus('Failed: '+e.message,'error')}finally{setLoading(false)}}function showAccept(){document.getElementById('revisions-wrap').style.display='flex';document.getElementById('revisions').focus()}async function submitAcceptance(){const rev=document.getElementById('revisions').value.trim();setStatus('<span class=\"spinner\"></span> Applying recommendations\u2026','info');setLoading(true);try{const d=await post({project:proj,action:'decide',decision:'ACCEPTED',revisions:rev});if(d.error){setStatus('Error: '+d.error,'error');return}setStatus('Accepted. PRD now v'+d.new_prd_version+'.','ok');document.getElementById('controls').className='controls';document.getElementById('gate').className='gate-controls show'}catch(e){setStatus('Failed: '+e.message,'error')}finally{setLoading(false)}}async function rejectReview(){setStatus('<span class=\"spinner\"></span> Recording rejection\u2026','info');setLoading(true);try{const d=await post({project:proj,action:'decide',decision:'REJECTED',revisions:''});if(d.error){setStatus('Error: '+d.error,'error');return}setStatus('Rejected. PRD proceeds unchanged.','ok');document.getElementById('controls').className='controls';document.getElementById('gate').className='gate-controls show'}catch(e){setStatus('Failed: '+e.message,'error')}finally{setLoading(false)}}async function gateDecision(choice){setStatus('<span class=\"spinner\"></span> Gate: '+choice+'\u2026','info');try{const d=await post({project:proj,action:'gate',gate_decision:choice});if(d.error){setStatus('Error: '+d.error,'error');return}if(choice==='PROCEED'){setStatus('\u2713 Gate: PROCEED. Ready for Phase 5.','ok');document.getElementById('gate').className='gate-controls'}else{setStatus('Gate: RECONVENE. Next review: '+d.next_review_file,'info');document.getElementById('gate').className='gate-controls'}}catch(e){setStatus('Failed: '+e.message,'error')}}</script></body>\n</html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "webhook-action",
+      "name": "Webhook - Council Action",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        14400,
+        6300
+      ],
+      "parameters": {
+        "path": "council-review-action",
+        "httpMethod": "POST",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "webhookId": "council-action"
+    },
+    {
+      "id": "code-validate",
+      "name": "Code - Validate Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        14700,
+        6300
+      ],
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst project = (body.project || '').trim().toLowerCase().replace(/\\s+/g, '-');\nconst action = body.action || 'review';\nif (!project) throw new Error('project required');\nif (!['review', 'decide', 'gate'].includes(action)) throw new Error('invalid action');\nconst wp = `/home/node/workspace/${project}`;\nconst fs = require('fs');\nlet reviewNum = 1;\ntry {\n  if (fs.existsSync(`${wp}/handoffs`)) {\n    const files = fs.readdirSync(`${wp}/handoffs`).filter(f => f.startsWith('004-council'));\n    if (files.length > 0) {\n      const nums = files.map(f => { const m = f.match(/-r(\\d+)\\.md$/); return m ? parseInt(m[1]) : 1; });\n      reviewNum = Math.max(...nums);\n    }\n  }\n} catch(e) {}\nconst councilHandoff = reviewNum === 1 ? `${wp}/handoffs/004-council-review.md` : `${wp}/handoffs/004-council-review-r${reviewNum}.md`;\nreturn [{ json: { project, action, decision: body.decision || '', gateDecision: body.gate_decision || '', revisions: body.revisions || '', reviewNum, wp, prdHandoff: `${wp}/handoffs/003-prd-refined.md`, councilHandoff, prdDir: `${wp}/tasks`, promptsDir: '/home/node/prompts', skillsDir: '/home/node/skills' } }];"
+      }
+    },
+    {
+      "id": "http-health",
+      "name": "HTTP - Ollama Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        15000,
+        6300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "http://host.docker.internal:11434/api/tags",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "if-reachable",
+      "name": "IF - Ollama Reachable",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        15300,
+        6300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "reach",
+              "leftValue": "={{ Array.isArray($json.models) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "respond-no-ollama",
+      "name": "Respond - Ollama Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        15600,
+        6500
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={\"error\": \"Ollama unreachable. Ensure qwen3.5:35b-a3b and qwen3.5:35b are loaded.\"}",
+        "options": {
+          "responseCode": 503,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "if-action",
+      "name": "IF - Route Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        15600,
+        6300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "act",
+              "leftValue": "={{ $('Code - Validate Inputs').first().json.action }}",
+              "rightValue": "review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "if-decide",
+      "name": "IF - Is Decide",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        15600,
+        6600
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dec",
+              "leftValue": "={{ $('Code - Validate Inputs').first().json.action }}",
+              "rightValue": "decide",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "code-load-prd",
+      "name": "Code - Load PRD",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        15900,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet prd;\ntry { prd = fs.readFileSync(d.prdHandoff, 'utf8'); } catch(e) { throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`); }\nreturn [{ json: { ...d, prd } }];"
+      }
+    },
+    {
+      "id": "code-validate-contract",
+      "name": "Code - Validate PRD Contract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16200,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst prd = d.prd;\nconst e = [];\nconst fm = prd.match(/^---\\n([\\s\\S]*?)\\n---/);\nif (!fm) e.push('Missing frontmatter');\nelse {\n  const f = fm[1];\n  if (!/phase:\\s*prd-synthesis/.test(f)) e.push('phase must be prd-synthesis');\n  if (!/version:\\s*v\\d+/.test(f)) e.push('version missing');\n}\nconst secs = [\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Executive Summary/i, 'Executive Summary'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Functional Requirements/i, 'Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional Requirements/i, 'Non-Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?User Stories/i, 'User Stories'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Architecture/i, 'Architecture'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk/i, 'Risk Assessment'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?MVP/i, 'MVP']\n];\nfor (const [p, n] of secs) if (!p.test(prd)) e.push(`Missing ${n}`);\nconst frCt = (prd.match(/\\*\\*FR-\\d+:/g) || []).length;\nif (frCt < 3) e.push(`< 3 FRs (${frCt})`);\nconst nfr = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional[\\s\\S]*?(?=\\n#{1,3}\\s)/i)?.[0] || '';\nif (nfr && !/\\d+\\s*(?:ms|s|%|concurrent|users|GB|MB)/.test(nfr)) e.push('NFR lacks numeric targets');\nconst usCt = (prd.match(/\\*\\*US-\\d+:/g) || []).length;\nif (usCt < 3) e.push(`< 3 user stories (${usCt})`);\nconst risk = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk[\\s\\S]*?(?=\\n#{1,3}\\s|$)/i)?.[0] || '';\nconst riskRows = (risk.match(/\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|/g) || []).filter(r => !r.includes('---') && !/likelihood/i.test(r));\nif (riskRows.length < 2) e.push(`< 2 risks (${riskRows.length})`);\nif (e.length > 0) return [{ json: { ...d, valid: false, errors: e } }];\nreturn [{ json: { ...d, valid: true } }];"
+      }
+    },
+    {
+      "id": "if-valid",
+      "name": "IF - PRD Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        16500,
+        6100
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "v",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "respond-invalid",
+      "name": "Respond - PRD Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        16800,
+        6300
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={\"error\": \"PRD validation failed\", \"errors\": {{ $json.errors }}}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "code-load-prompts",
+      "name": "Code - Load Reviewers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16800,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nconst rs = [\n  { name: 'Technical Reviewer', prompt: 'prd-council/core/technical-reviewer.md', skills: ['council/technical-review.md'] },\n  { name: 'Security Reviewer', prompt: 'prd-council/core/security-reviewer.md', skills: ['council/security-review.md'] },\n  { name: 'Executive Reviewer', prompt: 'prd-council/core/executive-reviewer.md', skills: ['council/business-alignment.md'] },\n  { name: 'User Advocate', prompt: 'prd-council/core/user-advocate.md', skills: ['council/ux-review.md'] }\n];\nconst rdata = rs.map(r => {\n  const pr = fs.readFileSync(`${d.promptsDir}/${r.prompt}`, 'utf8');\n  const sk = r.skills.map(s => fs.readFileSync(`${d.skillsDir}/${s}`, 'utf8')).join('\\n\\n---\\n\\n');\n  return { name: r.name, prompt: pr, skills: sk };\n});\nreturn [{ json: { ...d, reviewers: rdata } }];"
+      }
+    },
+    {
+      "id": "code-r1",
+      "name": "Code - Build R1 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        17100,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[0];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, idx: 0, sys, usr } }];"
+      }
+    },
+    {
+      "id": "http-r1",
+      "name": "HTTP - Run R1 (Tech)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        17400,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "application/json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen3.5:35b-a3b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.sys + '\\n\\n' + $json.usr }}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            },
+            {
+              "name": "options",
+              "value": "={{ { temperature: 0.7, num_predict: 4000 } }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "code-r1-proc",
+      "name": "Code - Save R1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        17700,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r1: d.response, r1name: 'Technical Reviewer' } }];"
+      }
+    },
+    {
+      "id": "code-r2",
+      "name": "Code - Build R2 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        18000,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[1];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+      }
+    },
+    {
+      "id": "http-r2",
+      "name": "HTTP - Run R2 (Sec)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        18300,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "application/json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen3.5:35b-a3b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.sys + '\\n\\n' + $json.usr }}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            },
+            {
+              "name": "options",
+              "value": "={{ { temperature: 0.7, num_predict: 4000 } }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "code-r2-proc",
+      "name": "Code - Save R2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        18600,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r2: d.response, r2name: 'Security Reviewer' } }];"
+      }
+    },
+    {
+      "id": "code-r3",
+      "name": "Code - Build R3 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        18900,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[2];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+      }
+    },
+    {
+      "id": "http-r3",
+      "name": "HTTP - Run R3 (Exec)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        19200,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "application/json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen3.5:35b-a3b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.sys + '\\n\\n' + $json.usr }}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            },
+            {
+              "name": "options",
+              "value": "={{ { temperature: 0.7, num_predict: 4000 } }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "code-r3-proc",
+      "name": "Code - Save R3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        19500,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r3: d.response, r3name: 'Executive Reviewer' } }];"
+      }
+    },
+    {
+      "id": "code-r4",
+      "name": "Code - Build R4 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        19800,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[3];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+      }
+    },
+    {
+      "id": "http-r4",
+      "name": "HTTP - Run R4 (User)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        20100,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "application/json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen3.5:35b-a3b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.sys + '\\n\\n' + $json.usr }}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            },
+            {
+              "name": "options",
+              "value": "={{ { temperature: 0.7, num_predict: 4000 } }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "code-r4-proc",
+      "name": "Code - Save R4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20400,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r4: d.response, r4name: 'User Advocate' } }];"
+      }
+    },
+    {
+      "id": "http-warmup",
+      "name": "HTTP - Warm Quality Model",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        20700,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "application/json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen3.5:35b"
+            },
+            {
+              "name": "prompt",
+              "value": "ready"
+            },
+            {
+              "name": "stream",
+              "value": false
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "code-chair",
+      "name": "Code - Build Chair Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        21000,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nconst chairP = fs.readFileSync(`${d.promptsDir}/prd-council/core/council-chair.md`, 'utf8');\nconst chairS = fs.readFileSync(`${d.skillsDir}/council/council-synthesis.md`, 'utf8');\nconst sys = `${chairP}\\n\\n# Skills\\n\\n${chairS}`;\nconst allRev = `## Reviewer Outputs\\n\\n### ${d.r1name}\\n\\n${d.r1}\\n\\n---\\n\\n### ${d.r2name}\\n\\n${d.r2}\\n\\n---\\n\\n### ${d.r3name}\\n\\n${d.r3}\\n\\n---\\n\\n### ${d.r4name}\\n\\n${d.r4}\\n\\n---`;\nconst prdV = d.prd.match(/version:\\s*(v\\d+)/i)?.[1] || 'v1';\nconst usr = `You are the Council Chair. Synthesize these reviews.\\n\\nPRD VERSION: ${prdV}\\n\\n${allRev}\\n\\nProvide synthesis per system prompt format.`;\nreturn [{ json: { ...d, allRev, prdV, sys, usr } }];"
+      }
+    },
+    {
+      "id": "http-chair",
+      "name": "HTTP - Run Chair",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        21300,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "application/json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "qwen3.5:35b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.sys + '\\n\\n' + $json.usr }}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            },
+            {
+              "name": "options",
+              "value": "={{ { temperature: 0.7, num_predict: 6000 } }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      }
+    },
+    {
+      "id": "code-assemble",
+      "name": "Code - Assemble Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        21600,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst chair = d.response;\nconst vm = chair.match(/Overall Verdict:\\s*(APPROVED|APPROVED WITH CONCERNS|REVISE AND RESUBMIT)/i);\nconst verdict = vm ? vm[1] : 'APPROVED WITH CONCERNS';\nconst reviewText = `---\\nphase: council-review\\nproject: ${d.project}\\nreview_number: ${d.reviewNum}\\ndate: ${new Date().toISOString().split('T')[0]}\\nprd_version_reviewed: ${d.prdV}\\nreviewers:\\n  - technical-reviewer\\n  - security-reviewer\\n  - executive-reviewer\\n  - user-advocate\\n  - council-chair\\noverall_verdict: ${verdict}\\nstatus: PENDING\\n---\\n\\n# Council Review \u2014 ${d.project}\\n\\n## Reviewer Outputs\\n\\n### Technical Reviewer\\n\\n${d.r1}\\n\\n---\\n\\n### Security Reviewer\\n\\n${d.r2}\\n\\n---\\n\\n### Executive Reviewer\\n\\n${d.r3}\\n\\n---\\n\\n### User Advocate\\n\\n${d.r4}\\n\\n---\\n\\n## Council Chair Synthesis\\n\\n${chair}\\n\\n---\\n\\n## User Decisions\\n\\n**Status**: PENDING\\n\\nUser review in progress.\\n\\n---\\n\\n## PRD Revision Log\\n\\n**PRD version before council**: ${d.prdV}\\n**PRD version after revisions**: (pending)\\n\\n### Changes Made\\n\\n(pending)\\n\\n---\\n\\n## Re-Review Status\\n\\n**Gate Decision**: (pending)\\n**Decision Date**: (pending)\\n**Rationale**: (pending)\\n`;\nreturn [{ json: { ...d, reviewText, verdict } }];"
+      }
+    },
+    {
+      "id": "respond-review",
+      "name": "Respond - Review Done",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        21900,
+        6100
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={\"success\": true, \"review_text\": {{ $json.reviewText }}, \"verdict\": {{ $json.verdict }}, \"review_number\": {{ $json.reviewNum }}, \"project\": {{ $json.project }} }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "code-decide",
+      "name": "Code - Handle User Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        15900,
+        6600
+      ],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet councilText;\ntry { councilText = fs.readFileSync(d.councilHandoff, 'utf8'); } catch(e) { throw new Error(`Council review not found at ${d.councilHandoff}. Run review first.`); }\nconst decision = d.decision;\nif (!decision) throw new Error('decision required (ACCEPTED or REJECTED)');\nconst revisions = d.revisions.trim();\nconst prdMatch = councilText.match(/prd_version_reviewed:\\s*(v\\d+)/);\nconst oldVer = prdMatch ? prdMatch[1] : 'v1';\nconst oldVerNum = parseInt(oldVer.substring(1));\nconst newVerNum = decision === 'ACCEPTED' && revisions ? oldVerNum + 1 : oldVerNum;\nconst newVer = `v${newVerNum}`;\nconst prdPath = `${d.prdDir}/prd-${d.project}-${oldVer}.md`;\nlet prd = '';\nif (decision === 'ACCEPTED' && revisions) {\n  prd = fs.readFileSync(prdPath, 'utf8');\n  prd = prd.replace(/version:\\s*v\\d+/, `version: ${newVer}`);\n  const newPrdPath = `${d.prdDir}/prd-${d.project}-${newVer}.md`;\n  fs.writeFileSync(newPrdPath, prd, 'utf8');\n}\nconst today = new Date().toISOString().split('T')[0];\nconst revisionsApplied = revisions ? revisions.split('\\n').filter(l => l.trim()).map(l => `- ${l.trim()}`).join('\\n') : 'No PRD changes made. Council findings acknowledged; PRD proceeds as-is.';\ncouncilText = councilText.replace(/status:\\s*PENDING/, `status: ${decision}`);\nconst userDecSection = `## User Decisions\\n\\n**Review Date**: ${today}\\n**Decision**: ${decision}\\n\\n### Accepted Recommendations\\n\\n${decision === 'ACCEPTED' && revisions ? revisionsApplied : 'No recommendations accepted. User proceeding without council revisions.'}\\n\\n### Rejected Recommendations\\n\\n${decision === 'REJECTED' ? 'All recommendations rejected. PRD proceeds unchanged.' : 'No recommendations rejected.'}\\n\\n### Notes\\n\\nUser ${decision === 'ACCEPTED' ? 'accepted' : 'rejected'} council verdict.`;\nconst revLogSection = `## PRD Revision Log\\n\\n**PRD version before council**: ${oldVer}\\n**PRD version after revisions**: ${newVer}\\n\\n### Changes Made\\n\\n${revisionsApplied}`;\ncouncilText = councilText.replace(/## User Decisions[\\s\\S]*?(?=\\n## PRD Revision Log|$)/, userDecSection + '\\n\\n---\\n\\n');\ncouncilText = councilText.replace(/## PRD Revision Log[\\s\\S]*?(?=\\n## Re-Review Status|$)/, revLogSection + '\\n\\n---\\n\\n');\nfs.writeFileSync(d.councilHandoff, councilText, 'utf8');\nreturn [{ json: { ...d, new_prd_version: newVer, decision } }];"
+      }
+    },
+    {
+      "id": "respond-decide",
+      "name": "Respond - Decision Recorded",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        16200,
+        6600
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={\"success\": true, \"decision\": {{ $json.decision }}, \"new_prd_version\": {{ $json.new_prd_version }}, \"project\": {{ $json.project }} }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": "code-gate",
+      "name": "Code - Handle Gate Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        15900,
+        6900
+      ],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet councilText;\ntry { councilText = fs.readFileSync(d.councilHandoff, 'utf8'); } catch(e) { throw new Error(`Council review not found. Run review first.`); }\nconst gate = d.gateDecision;\nif (!gate) throw new Error('gate_decision required (PROCEED or RECONVENE)');\nconst today = new Date().toISOString().split('T')[0];\nconst rationale = gate === 'PROCEED' ? 'User approved proceeding to next phase.' : 'User requested council re-review with revised PRD.';\nconst nextReviewFile = gate === 'RECONVENE' ? `004-council-review-r${d.reviewNum + 1}.md` : '';\nconst gateSection = `## Re-Review Status\\n\\n**Gate Decision**: ${gate}\\n**Decision Date**: ${today}\\n**Rationale**: ${rationale}\\n${gate === 'RECONVENE' ? `\\n**Next review scope**: Delta review of revised sections\\n**Next review file**: workspace/${d.project}/handoffs/${nextReviewFile}` : ''}`;\ncouncilText = councilText.replace(/## Re-Review Status[\\s\\S]*$/, gateSection);\nfs.writeFileSync(d.councilHandoff, councilText, 'utf8');\nif (gate === 'RECONVENE') {\n  const nextPath = `${d.wp}/handoffs/${nextReviewFile}`;\n  const shell = `---\\nphase: council-review\\nproject: ${d.project}\\nreview_number: ${d.reviewNum + 1}\\ndate: (pending)\\nprd_version_reviewed: (pending)\\nstatus: PENDING\\n---\\n\\n# Council Review r${d.reviewNum + 1} \u2014 ${d.project}\\n\\n(Review will be populated when started)\\n`;\n  fs.writeFileSync(nextPath, shell, 'utf8');\n}\nreturn [{ json: { ...d, gate_decision: gate, next_review_file: nextReviewFile || 'N/A' } }];"
+      }
+    },
+    {
+      "id": "respond-gate",
+      "name": "Respond - Gate Recorded",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        16200,
+        6900
+      ],
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={\"success\": true, \"gate_decision\": {{ $json.gate_decision }}, \"next_review_file\": {{ $json.next_review_file }}, \"project\": {{ $json.project }} }",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "connections": {
+    "webhook-ui": {
+      "main": [
+        [
+          {
+            "node": "respond-ui",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "webhook-action": {
+      "main": [
+        [
+          {
+            "node": "code-validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-validate": {
+      "main": [
+        [
+          {
+            "node": "http-health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http-health": {
+      "main": [
+        [
+          {
+            "node": "if-reachable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-reachable": {
+      "main": [
+        [
+          {
+            "node": "if-action",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "respond-no-ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-action": {
+      "main": [
+        [
+          {
+            "node": "code-load-prd",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "if-decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-decide": {
+      "main": [
+        [
+          {
+            "node": "code-decide",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "code-gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-load-prd": {
+      "main": [
+        [
+          {
+            "node": "code-validate-contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-validate-contract": {
+      "main": [
+        [
+          {
+            "node": "if-valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "if-valid": {
+      "main": [
+        [
+          {
+            "node": "code-load-prompts",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "respond-invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-load-prompts": {
+      "main": [
+        [
+          {
+            "node": "code-r1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-r1": {
+      "main": [
+        [
+          {
+            "node": "http-r1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http-r1": {
+      "main": [
+        [
+          {
+            "node": "code-r1-proc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-r1-proc": {
+      "main": [
+        [
+          {
+            "node": "code-r2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-r2": {
+      "main": [
+        [
+          {
+            "node": "http-r2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http-r2": {
+      "main": [
+        [
+          {
+            "node": "code-r2-proc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-r2-proc": {
+      "main": [
+        [
+          {
+            "node": "code-r3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-r3": {
+      "main": [
+        [
+          {
+            "node": "http-r3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http-r3": {
+      "main": [
+        [
+          {
+            "node": "code-r3-proc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-r3-proc": {
+      "main": [
+        [
+          {
+            "node": "code-r4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-r4": {
+      "main": [
+        [
+          {
+            "node": "http-r4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http-r4": {
+      "main": [
+        [
+          {
+            "node": "code-r4-proc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-r4-proc": {
+      "main": [
+        [
+          {
+            "node": "http-warmup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http-warmup": {
+      "main": [
+        [
+          {
+            "node": "code-chair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-chair": {
+      "main": [
+        [
+          {
+            "node": "http-chair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "http-chair": {
+      "main": [
+        [
+          {
+            "node": "code-assemble",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-assemble": {
+      "main": [
+        [
+          {
+            "node": "respond-review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-decide": {
+      "main": [
+        [
+          {
+            "node": "respond-decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "code-gate": {
+      "main": [
+        [
+          {
+            "node": "respond-gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-03-01T00:00:00.000Z",
+  "versionId": "1"
+}
