@@ -18,8 +18,7 @@
         "httpMethod": "GET",
         "responseMode": "responseNode",
         "options": {}
-      },
-      "webhookId": "council-ui"
+      }
     },
     {
       "id": "respond-ui",
@@ -59,8 +58,7 @@
         "httpMethod": "POST",
         "responseMode": "responseNode",
         "options": {}
-      },
-      "webhookId": "council-action"
+      }
     },
     {
       "id": "code-validate",
