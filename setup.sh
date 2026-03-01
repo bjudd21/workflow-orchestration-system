@@ -107,11 +107,11 @@ echo ""
 # ---- Pull models ----
 
 SPEED_MODEL="qwen3.5:35b-a3b"
-QUALITY_MODEL="qwen3.5:27b"
+QUALITY_MODEL="qwen3.5:35b"
 
 echo -e "${BLUE}Checking required models...${NC}"
-echo -e "  Speed model:   ${SPEED_MODEL} (~21GB)"
-echo -e "  Quality model: ${QUALITY_MODEL} (~18GB)"
+echo -e "  Speed model:   ${SPEED_MODEL} (~18GB MoE)"
+echo -e "  Quality model: ${QUALITY_MODEL} (~23GB)"
 echo ""
 
 EXISTING_MODELS=$(ollama list 2>/dev/null | awk '{print $1}' || echo "")

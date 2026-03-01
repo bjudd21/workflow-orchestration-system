@@ -1,7 +1,7 @@
 ---
 agent: council-chair
 phase: 4
-model: quality (qwen3.5:27b)
+model: quality (qwen3.5:35b)
 skills:
   - skills/council/council-synthesis.md
 ---
