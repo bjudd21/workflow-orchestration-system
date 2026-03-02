@@ -219,15 +219,14 @@
     {
       "id": "3ede513b-7ddb-44c5-9cdc-0b86f64635e4",
       "name": "Read - PRD File",
-      "type": "n8n-nodes-base.readBinaryFile",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         15900,
         6100
       ],
       "parameters": {
-        "filePath": "={{ $('Code - Validate Inputs').first().json.prdHandoff }}",
-        "options": {}
+        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd } }];"
       }
     },
     {
@@ -695,68 +694,27 @@
     {
       "id": "65c9219a-0c63-43f2-84ce-015d9756d77e",
       "name": "Read - Council for Decision",
-      "type": "n8n-nodes-base.readBinaryFile",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         15750,
         6600
       ],
       "parameters": {
-        "filePath": "={{ $('Code - Validate Inputs').first().json.councilHandoff }}",
-        "options": {}
-      }
-    },
-    {
-      "id": "32b1677f-c41b-4220-a49b-c1cfd64c1a48",
-      "name": "Code - Process Council for Decision",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        15850,
-        6600
-      ],
-      "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first();\nlet councilFileContent = '';\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  councilFileContent = buffer.toString('utf8');\n}\nreturn [{ json: { ...d, councilFileContent } }];"
+        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet councilFileContent;\ntry {\n  councilFileContent = fs.readFileSync(d.councilHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`Council review not found at ${d.councilHandoff}. Run council review first.`);\n}\nreturn [{ json: { ...d, councilFileContent } }];"
       }
     },
     {
       "id": "1a479721-3e4a-42dc-8b6b-4bf8744043f6",
       "name": "Read - Council for Gate",
-      "type": "n8n-nodes-base.readBinaryFile",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         15750,
         6900
       ],
       "parameters": {
-        "filePath": "={{ $('Code - Validate Inputs').first().json.councilHandoff }}",
-        "options": {}
-      }
-    },
-    {
-      "id": "ceb339fa-4c5e-406d-98be-189f75b43520",
-      "name": "Code - Process Council for Gate",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        15850,
-        6900
-      ],
-      "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first();\nlet councilFileContent = '';\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  councilFileContent = buffer.toString('utf8');\n}\nreturn [{ json: { ...d, councilFileContent } }];"
-      }
-    },
-    {
-      "id": "d1edbb50-0737-4738-90c2-d9192d26bd76",
-      "name": "Code - Process PRD",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        16100,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first();\nlet prd;\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  prd = buffer.toString('utf8');\n} else {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd } }];"
+        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet councilFileContent;\ntry {\n  councilFileContent = fs.readFileSync(d.councilHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`Council review not found at ${d.councilHandoff}. Run council review first.`);\n}\nreturn [{ json: { ...d, councilFileContent } }];"
       }
     },
     {
@@ -805,15 +763,14 @@
     {
       "id": "3fda7d14-7c13-4f24-84bf-1a82afa3218d",
       "name": "Read Binary File - Current PRD",
-      "type": "n8n-nodes-base.readBinaryFile",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         16250,
         6550
       ],
       "parameters": {
-        "filePath": "={{ $('Code - Validate Inputs').first().json.prdHandoff }}",
-        "options": {}
+        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd } }];"
       }
     },
     {
@@ -826,7 +783,7 @@
         6550
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first();\nlet currentPRD = '';\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  currentPRD = buffer.toString('utf8');\n}\n\n// Extract version from PRD frontmatter\nconst versionMatch = currentPRD.match(/version:\\s*(v\\d+)/);\nconst currentVersion = versionMatch ? versionMatch[1] : 'v1';\nconst newVersionNum = parseInt(currentVersion.substring(1)) + 1;\nconst newVersion = `v${newVersionNum}`;\n\nreturn [{\n  json: {\n    ...d,\n    currentPRD,\n    currentVersion,\n    newVersion\n  }\n}];"
+        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first().json;\nconst currentPRD = item.prd || '';\n\n// Extract version from PRD frontmatter\nconst versionMatch = currentPRD.match(/version:\\s*(v\\d+)/);\nconst currentVersion = versionMatch ? versionMatch[1] : 'v1';\nconst newVersionNum = parseInt(currentVersion.substring(1)) + 1;\nconst newVersion = `v${newVersionNum}`;\n\nreturn [{\n  json: {\n    ...d,\n    currentPRD,\n    currentVersion,\n    newVersion\n  }\n}];"
       }
     },
     {
@@ -885,35 +842,27 @@
     {
       "id": "792fa194-8a8c-4ed1-a80b-33cf5edbdc56",
       "name": "Write Binary File - Save Revised PRD",
-      "type": "n8n-nodes-base.writeBinaryFile",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         17250,
         6550
       ],
       "parameters": {
-        "fileName": "={{ $json.prdFileName }}",
-        "dataPropertyName": "revisedPRD",
-        "options": {
-          "folder": "={{ $json.prdDir }}"
-        }
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\n\n// Create directory if needed\nfs.mkdirSync(`/home/node/workspace/${d.project}/tasks`, { recursive: true });\n\n// Write revised PRD\nconst prdPath = `/home/node/workspace/${d.project}/tasks/${d.prdFileName}`;\nfs.writeFileSync(prdPath, d.revisedPRD, 'utf8');\n\nreturn [{\n  json: {\n    ...d,\n    prd_path: prdPath\n  }\n}];"
       }
     },
     {
       "id": "92927398-5072-40fe-a253-20363541576d",
       "name": "Write Binary File - Update Handoff",
-      "type": "n8n-nodes-base.writeBinaryFile",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         17450,
         6550
       ],
       "parameters": {
-        "fileName": "003-prd-refined.md",
-        "dataPropertyName": "revisedPRD",
-        "options": {
-          "folder": "={{ $json.wp }}/handoffs"
-        }
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\n\n// Create directory if needed\nfs.mkdirSync(`/home/node/workspace/${d.project}/handoffs`, { recursive: true });\n\n// Update handoff file with revised PRD\nfs.writeFileSync(d.prdHandoff, d.revisedPRD, 'utf8');\n\nreturn [{ json: d }];"
       }
     },
     {
@@ -1301,17 +1250,6 @@
       "main": [
         [
           {
-            "node": "Code - Check If Accepted",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Process Council for Decision": {
-      "main": [
-        [
-          {
             "node": "Code - Handle User Decision",
             "type": "main",
             "index": 0
@@ -1323,17 +1261,6 @@
       "main": [
         [
           {
-            "node": "Code - Check If Reconvene",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Process Council for Gate": {
-      "main": [
-        [
-          {
             "node": "Code - Handle Gate Decision",
             "type": "main",
             "index": 0
@@ -1342,17 +1269,6 @@
       ]
     },
     "Read - PRD File": {
-      "main": [
-        [
-          {
-            "node": "Code - Process PRD",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Process PRD": {
       "main": [
         [
           {
