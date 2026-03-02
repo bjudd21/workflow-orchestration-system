@@ -310,22 +310,15 @@
     },
     {
       "id": "fe99de91-8aac-4574-b787-a050129a87aa",
-      "name": "HTTP - Warm Quality Model",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
+      "name": "Code - Warm Quality Model",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         20700,
         6100
       ],
       "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:11434/api/generate",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ { model: \"qwen3.5:35b\", prompt: \"Respond with: ready\", stream: false, options: { num_predict: 10 } } }}",
-        "options": {
-          "timeout": 300000
-        }
+        "jsCode": "const http = require('http');\nconst d = $input.first().json;\n\n// Warm the quality model with a quick request\nconst warmupBody = JSON.stringify({\n  model: 'qwen3.5:35b',\n  messages: [{ role: 'user', content: 'Ready' }],\n  stream: false,\n  options: { num_predict: 5 }\n});\n\n// Fire and forget - don't wait for response\nconst options = {\n  hostname: 'host.docker.internal',\n  port: 11434,\n  path: '/api/chat',\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json',\n    'Content-Length': Buffer.byteLength(warmupBody)\n  },\n  timeout: 10000\n};\n\nconst req = http.request(options);\nreq.on('error', () => {}); // Ignore errors\nreq.write(warmupBody);\nreq.end();\n\n// Pass through all data immediately\nreturn [{ json: d }];"
       },
       "continueOnFail": true
     },
