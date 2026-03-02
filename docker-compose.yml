@@ -22,6 +22,9 @@ services:
       - N8N_DEFAULT_TIMEOUT=300
       - WEBHOOK_TIMEOUT=300
 
+      # Filesystem access — whitelist workspace and resource directories
+      - N8N_FILE_SYSTEM_PATHS=/home/node/workspace:/home/node/prompts:/home/node/skills:/home/node/contracts
+
       # Execution settings — keep history for debugging
       - EXECUTIONS_DATA_SAVE_ON_ERROR=all
       - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
