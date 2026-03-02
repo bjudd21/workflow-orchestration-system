@@ -90,8 +90,7 @@
           "response": {
             "neverError": true,
             "responseFormat": "json"
-          },
-          "destinationDataField": "healthCheck"
+          }
         }
       },
       "continueOnFail": true
@@ -116,7 +115,7 @@
           "conditions": [
             {
               "id": "reach",
-              "leftValue": "={{ Array.isArray($json.healthCheck?.models) }}",
+              "leftValue": "={{ Array.isArray($json.models) }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
