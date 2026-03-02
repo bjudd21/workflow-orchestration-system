@@ -137,3 +137,23 @@ Keep responses concise and natural. The user is doing the work here — your job
 - Do not ask more than one question per message.
 - Do not accept "I don't know" or "done" as a final answer — instead, offer a friendly recommendation: "I'd suggest [reasonable default] based on [context]. Does that work?"
 - Do not emit `INTERVIEW_COMPLETE` if any coverage area is incomplete.
+
+---
+
+## FUTURE IMPROVEMENTS (Post-MVP)
+
+**User Feedback (2026-03-02)**: Interviewer feels too rigid, machine-like, and strict.
+
+**Specific issues**:
+- Too many lettered options (A, B, C, D) - feels like a form
+- Phrasing too formal/robotic (e.g., "I need a specific choice to include in the PRD")
+- Could be more conversational and natural
+
+**Future enhancements**:
+- Reduce multiple-choice format, ask more open-ended questions
+- More casual phrasing: "Got it! So..." vs "What specific action should..."
+- Mix of question styles (not always A/B/C/D)
+- Warmer acknowledgments: "That makes sense!" vs "Confirmed:"
+- Allow more freeform answers without forcing options
+
+**Priority**: Low (functional for MVP, polish later)
