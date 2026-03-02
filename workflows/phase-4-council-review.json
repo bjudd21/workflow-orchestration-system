@@ -351,7 +351,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $(\"Code - Build R1 Request\").first().json;\nconst httpResponse = $input.first().json;\nreturn [{ json: { ...d, r1: httpResponse.response, r1name: 'Technical Reviewer' } }];"
+        "jsCode": "const d = $node[\"Code - Build R1 Request\"].json;\nconst httpResponse = $input.first().json;\nreturn [{ json: { ...d, r1: httpResponse.response, r1name: 'Technical Reviewer' } }];"
       }
     },
     {
@@ -397,7 +397,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $(\"Code - Build R2 Request\").first().json;\nconst httpResponse = $input.first().json;\nreturn [{ json: { ...d, r2: httpResponse.response, r2name: 'Security Reviewer' } }];"
+        "jsCode": "const d = $node[\"Code - Build R2 Request\"].json;\nconst httpResponse = $input.first().json;\nreturn [{ json: { ...d, r2: httpResponse.response, r2name: 'Security Reviewer' } }];"
       }
     },
     {
@@ -443,7 +443,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $(\"Code - Build R3 Request\").first().json;\nconst httpResponse = $input.first().json;\nreturn [{ json: { ...d, r3: httpResponse.response, r3name: 'Executive Reviewer' } }];"
+        "jsCode": "const d = $node[\"Code - Build R3 Request\"].json;\nconst httpResponse = $input.first().json;\nreturn [{ json: { ...d, r3: httpResponse.response, r3name: 'Executive Reviewer' } }];"
       }
     },
     {
@@ -489,7 +489,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $(\"Code - Build R4 Request\").first().json;\nconst httpResponse = $input.first().json;\nreturn [{ json: { ...d, r4: httpResponse.response, r4name: 'User Advocate' } }];"
+        "jsCode": "const d = $node[\"Code - Build R4 Request\"].json;\nconst httpResponse = $input.first().json;\nreturn [{ json: { ...d, r4: httpResponse.response, r4name: 'User Advocate' } }];"
       }
     },
     {
