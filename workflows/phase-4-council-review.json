@@ -309,54 +309,6 @@
       }
     },
     {
-      "id": "fe99de91-8aac-4574-b787-a050129a87aa",
-      "name": "Code - Warm Quality Model",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        20700,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const http = require('http');\nconst d = $input.first().json;\n\n// Warm the quality model with a quick request\nconst warmupBody = JSON.stringify({\n  model: 'qwen3.5:35b',\n  messages: [{ role: 'user', content: 'Ready' }],\n  stream: false,\n  options: { num_predict: 5 }\n});\n\n// Fire and forget - don't wait for response\nconst options = {\n  hostname: 'host.docker.internal',\n  port: 11434,\n  path: '/api/chat',\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json',\n    'Content-Length': Buffer.byteLength(warmupBody)\n  },\n  timeout: 10000\n};\n\nconst req = http.request(options);\nreq.on('error', () => {}); // Ignore errors\nreq.write(warmupBody);\nreq.end();\n\n// Pass through all data immediately\nreturn [{ json: d }];"
-      },
-      "continueOnFail": true
-    },
-    {
-      "id": "350beae5-abbc-4bbe-b618-22993a15b350",
-      "name": "Code - Build Chair Request",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        21000,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst sys = `${d.chair.prompt}\\n\\n# Skills\\n\\n${d.chair.skills}`;\nconst allRev = `## Reviewer Outputs\\n\\n### ${d.r1name}\\n\\n${d.r1}\\n\\n---\\n\\n### ${d.r2name}\\n\\n${d.r2}\\n\\n---\\n\\n### ${d.r3name}\\n\\n${d.r3}\\n\\n---\\n\\n### ${d.r4name}\\n\\n${d.r4}\\n\\n---`;\nconst prdV = d.prd.match(/version:\\s*(v\\d+)/i)?.[1] || 'v1';\nconst usr = `You are the Council Chair. Synthesize these reviews.\\n\\nPRD VERSION: ${prdV}\\n\\n${allRev}\\n\\nProvide synthesis per system prompt format.`;\n\nreturn [{\n  json: {\n    _context: d,  // Preserve ALL data\n    model: 'qwen3.5:35b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ],\n    allRev,\n    prdV\n  }\n}];"
-      }
-    },
-    {
-      "id": "f5bfd9bb-0e0c-499d-842b-a8a00d8bc4b6",
-      "name": "HTTP - Run Chair",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        21300,
-        6100
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:11434/api/chat",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ model: $json.model, messages: $json.messages, stream: false, think: false }) }}",
-        "options": {
-          "timeout": 300000
-        }
-      }
-    },
-    {
       "id": "869ea519-ca49-4da8-9d4b-f43c721668fa",
       "name": "Code - Assemble Output",
       "type": "n8n-nodes-base.code",
@@ -366,7 +318,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const buildData = $('Code - Build Chair Request').first().json;\nconst httpResponse = $input.first().json;\nconst d = buildData._context;\n\nconst chairReview = httpResponse.message.content;\n\n// Extract verdict from chair review\nlet verdict = 'NEEDS_REVISION';\nif (/verdict:\\s*approved/i.test(chairReview) || /\\bAPPROVED\\b/i.test(chairReview)) {\n  verdict = 'APPROVED';\n}\n\n// Assemble full review text\nconst reviewText = `# Council Review \u2014 ${d.project}\\n\\n${chairReview}`;\n\nreturn [{\n  json: {\n    ...d,\n    reviewText,\n    verdict,\n    reviewNum: 1,\n    project: d.project\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\n\nreturn [{\n  json: {\n    reviewText: d.reviewText,\n    verdict: d.verdict,\n    reviewNum: d.reviewNum,\n    project: d.project\n  }\n}];"
       }
     },
     {
@@ -468,8 +420,8 @@
       }
     },
     {
-      "id": "9a104a68-0c6a-4d42-aa90-ee205e191872",
-      "name": "Code - Build R1 Request",
+      "id": "4b2d2110-ea48-4c3c-836d-1b003a169904",
+      "name": "Code - Run R1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -477,127 +429,25 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[0];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    _context: d,  // Preserve ALL data here\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
+        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[0];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nconst requestBody = JSON.stringify({\n  model: 'qwen3.5:35b-a3b',\n  messages: [\n    { role: 'system', content: sys },\n    { role: 'user', content: usr }\n  ],\n  stream: false,\n  think: false\n});\n\n// Call Ollama /api/chat\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/chat',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    timeout: 300000\n  };\n\n  let data = '';\n  const req = http.request(options, (res) => {\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r1: response.message.content, r1name: 'Technical Reviewer' } }]);\n      } catch(e) {\n        reject(new Error('Ollama response parse error: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', reject);\n  req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });\n  req.write(requestBody);\n  req.end();\n});"
       }
     },
     {
-      "id": "577bb3e9-a41a-4308-ab98-a9eb01effc14",
-      "name": "HTTP - Run R1 (Tech)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        17400,
-        6100
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:11434/api/chat",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ model: $json.model, messages: $json.messages, stream: false, think: false }) }}",
-        "options": {
-          "timeout": 300000
-        }
-      }
-    },
-    {
-      "id": "42f53c97-d38a-4600-94b3-6d6436182848",
-      "name": "Code - Save R1",
+      "id": "3c1fecbf-594b-4aff-8c18-825bcdb4bf83",
+      "name": "Code - Run R2",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [
-        17700,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const buildData = $('Code - Build R1 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData._context,  // Restore all original data\n    r1: httpResponse.message.content,\n    r1name: 'Technical Reviewer'\n  }\n}];"
-      }
-    },
-    {
-      "id": "b5fc0abf-f7bc-40e8-bf0a-ae439962ba08",
-      "name": "Code - Build R2 Request",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        18000,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[1];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    _context: d,  // Preserve ALL data here\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
-      }
-    },
-    {
-      "id": "3211fb9f-1c38-46b7-91a3-f30244d57988",
-      "name": "HTTP - Run R2 (Sec)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
       "position": [
         18300,
         6100
       ],
       "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:11434/api/chat",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ model: $json.model, messages: $json.messages, stream: false, think: false }) }}",
-        "options": {
-          "timeout": 300000
-        }
+        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[1];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nconst requestBody = JSON.stringify({\n  model: 'qwen3.5:35b-a3b',\n  messages: [\n    { role: 'system', content: sys },\n    { role: 'user', content: usr }\n  ],\n  stream: false,\n  think: false\n});\n\n// Call Ollama /api/chat\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/chat',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    timeout: 300000\n  };\n\n  let data = '';\n  const req = http.request(options, (res) => {\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r2: response.message.content, r2name: 'Security Reviewer' } }]);\n      } catch(e) {\n        reject(new Error('Ollama response parse error: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', reject);\n  req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });\n  req.write(requestBody);\n  req.end();\n});"
       }
     },
     {
-      "id": "e3a30d42-c5e3-4b1a-b534-a13592c8ed93",
-      "name": "Code - Save R2",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        18600,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const buildData = $('Code - Build R2 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData._context,  // Restore all original data\n    r2: httpResponse.message.content,\n    r2name: 'Security Reviewer'\n  }\n}];"
-      }
-    },
-    {
-      "id": "3b449468-e2f2-46d7-b679-090558f29df7",
-      "name": "Code - Build R3 Request",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        18900,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[2];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    _context: d,  // Preserve ALL data here\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
-      }
-    },
-    {
-      "id": "14593c22-67fc-4c50-a135-a0132e9a49c8",
-      "name": "HTTP - Run R3 (Exec)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        19200,
-        6100
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:11434/api/chat",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ model: $json.model, messages: $json.messages, stream: false, think: false }) }}",
-        "options": {
-          "timeout": 300000
-        }
-      }
-    },
-    {
-      "id": "4b156c8d-90d7-4468-b8ac-18389c19dd95",
-      "name": "Code - Save R3",
+      "id": "e696506e-6d8a-496d-85d7-e0d711a1154b",
+      "name": "Code - Run R3",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -605,54 +455,33 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const buildData = $('Code - Build R3 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData._context,  // Restore all original data\n    r3: httpResponse.message.content,\n    r3name: 'Executive Reviewer'\n  }\n}];"
+        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[2];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nconst requestBody = JSON.stringify({\n  model: 'qwen3.5:35b-a3b',\n  messages: [\n    { role: 'system', content: sys },\n    { role: 'user', content: usr }\n  ],\n  stream: false,\n  think: false\n});\n\n// Call Ollama /api/chat\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/chat',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    timeout: 300000\n  };\n\n  let data = '';\n  const req = http.request(options, (res) => {\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r3: response.message.content, r3name: 'Executive Reviewer' } }]);\n      } catch(e) {\n        reject(new Error('Ollama response parse error: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', reject);\n  req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });\n  req.write(requestBody);\n  req.end();\n});"
       }
     },
     {
-      "id": "55676b87-b1bf-4d69-9a19-d23f958f45b0",
-      "name": "Code - Build R4 Request",
+      "id": "c97dd14b-4956-4bb5-a3d1-215e3cc9d3f9",
+      "name": "Code - Run R4",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        19800,
+        20700,
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[3];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    _context: d,  // Preserve ALL data here\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
+        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[3];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nconst requestBody = JSON.stringify({\n  model: 'qwen3.5:35b-a3b',\n  messages: [\n    { role: 'system', content: sys },\n    { role: 'user', content: usr }\n  ],\n  stream: false,\n  think: false\n});\n\n// Call Ollama /api/chat\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/chat',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    timeout: 300000\n  };\n\n  let data = '';\n  const req = http.request(options, (res) => {\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r4: response.message.content, r4name: 'User Advocate' } }]);\n      } catch(e) {\n        reject(new Error('Ollama response parse error: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', reject);\n  req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });\n  req.write(requestBody);\n  req.end();\n});"
       }
     },
     {
-      "id": "50d28ce8-64b2-4437-98bd-8588f1937b6c",
-      "name": "HTTP - Run R4 (User)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        20100,
-        6100
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:11434/api/chat",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ model: $json.model, messages: $json.messages, stream: false, think: false }) }}",
-        "options": {
-          "timeout": 300000
-        }
-      }
-    },
-    {
-      "id": "23fea161-fff5-496c-b261-7ae3b997f634",
-      "name": "Code - Save R4",
+      "id": "chair-merged-node-id",
+      "name": "Code - Run Chair",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        20400,
+        21000,
         6100
       ],
       "parameters": {
-        "jsCode": "const buildData = $('Code - Build R4 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData._context,  // Restore all original data\n    r4: httpResponse.message.content,\n    r4name: 'User Advocate'\n  }\n}];"
+        "jsCode": "const http = require('http');\nconst d = $input.first().json;\n\n// Build request\nconst sys = `${d.chair.prompt}\\n\\n# Skills\\n\\n${d.chair.skills}`;\nconst allRev = `## Reviewer Outputs\\n\\n### ${d.r1name}\\n\\n${d.r1}\\n\\n---\\n\\n### ${d.r2name}\\n\\n${d.r2}\\n\\n---\\n\\n### ${d.r3name}\\n\\n${d.r3}\\n\\n---\\n\\n### ${d.r4name}\\n\\n${d.r4}\\n\\n---`;\nconst prdV = d.prd.match(/version:\\s*(v\\d+)/i)?.[1] || 'v1';\nconst usr = `You are the Council Chair. Synthesize these reviews.\\n\\nPRD VERSION: ${prdV}\\n\\n${allRev}\\n\\nProvide synthesis per system prompt format.`;\n\nconst requestBody = JSON.stringify({\n  model: 'qwen3.5:35b',\n  messages: [\n    { role: 'system', content: sys },\n    { role: 'user', content: usr }\n  ],\n  stream: false,\n  think: false\n});\n\n// Call Ollama /api/chat\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/chat',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    timeout: 300000\n  };\n\n  let data = '';\n  const req = http.request(options, (res) => {\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        const chairReview = response.message.content;\n        \n        // Extract verdict\n        let verdict = 'NEEDS_REVISION';\n        if (/verdict:\\s*approved/i.test(chairReview) || /\\bAPPROVED\\b/i.test(chairReview)) {\n          verdict = 'APPROVED';\n        }\n        \n        const reviewText = `# Council Review \u2014 ${d.project}\\n\\n${chairReview}`;\n        \n        resolve([{ json: { ...d, chairReview, reviewText, verdict, reviewNum: 1 } }]);\n      } catch(e) {\n        reject(new Error('Ollama response parse error: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', reject);\n  req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });\n  req.write(requestBody);\n  req.end();\n});"
       }
     }
   ],
@@ -799,29 +628,7 @@
       "main": [
         [
           {
-            "node": "Code - Build R1 Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Build Chair Request": {
-      "main": [
-        [
-          {
-            "node": "HTTP - Run Chair",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP - Run Chair": {
-      "main": [
-        [
-          {
-            "node": "Code - Assemble Output",
+            "node": "Code - Run R1",
             "type": "main",
             "index": 0
           }
@@ -861,143 +668,55 @@
         ]
       ]
     },
-    "Code - Build R1 Request": {
+    "Code - Run R1": {
       "main": [
         [
           {
-            "node": "HTTP - Run R1 (Tech)",
+            "node": "Code - Run R2",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "HTTP - Run R1 (Tech)": {
+    "Code - Run R2": {
       "main": [
         [
           {
-            "node": "Code - Save R1",
+            "node": "Code - Run R3",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code - Build R2 Request": {
+    "Code - Run R3": {
       "main": [
         [
           {
-            "node": "HTTP - Run R2 (Sec)",
+            "node": "Code - Run R4",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "HTTP - Run R2 (Sec)": {
+    "Code - Run R4": {
       "main": [
         [
           {
-            "node": "Code - Save R2",
+            "node": "Code - Run Chair",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code - Build R3 Request": {
+    "Code - Run Chair": {
       "main": [
         [
           {
-            "node": "HTTP - Run R3 (Exec)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP - Run R3 (Exec)": {
-      "main": [
-        [
-          {
-            "node": "Code - Save R3",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Build R4 Request": {
-      "main": [
-        [
-          {
-            "node": "HTTP - Run R4 (User)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP - Run R4 (User)": {
-      "main": [
-        [
-          {
-            "node": "Code - Save R4",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Save R1": {
-      "main": [
-        [
-          {
-            "node": "Code - Build R2 Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Save R2": {
-      "main": [
-        [
-          {
-            "node": "Code - Build R3 Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Save R3": {
-      "main": [
-        [
-          {
-            "node": "Code - Build R4 Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Save R4": {
-      "main": [
-        [
-          {
-            "node": "Code - Warm Quality Model",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Warm Quality Model": {
-      "main": [
-        [
-          {
-            "node": "Code - Build Chair Request",
+            "node": "Code - Assemble Output",
             "type": "main",
             "index": 0
           }
