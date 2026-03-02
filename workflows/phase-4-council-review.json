@@ -141,7 +141,7 @@
       ],
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={\"error\": \"Ollama unreachable. Ensure qwen3.5:35b-a3b-a3b and qwen3.5:35b-a3b are loaded.\"}",
+        "responseBody": "={\"error\": \"Ollama unreachable. Ensure qwen3.5:35b-a3b is loaded.\"}",
         "options": {
           "responseCode": 503,
           "responseHeaders": {
