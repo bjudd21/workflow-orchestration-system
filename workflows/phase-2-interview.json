@@ -217,7 +217,10 @@
       "position": [
         16992,
         5984
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000
     },
     {
       "parameters": {
@@ -314,7 +317,10 @@
       "position": [
         18496,
         5984
-      ]
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000
     },
     {
       "parameters": {
