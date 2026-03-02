@@ -35,7 +35,7 @@ docker compose up -d
 ### Prerequisites
 
 - WSL2 (Ubuntu) or Linux
-- NVIDIA GPU with ≥24GB VRAM (RTX 4090 or equivalent)
+- NVIDIA GPU with ≥18GB VRAM (RTX 4090, RTX 4080, or equivalent)
 - Docker Desktop or Docker Engine + Compose
 - Ollama with CUDA support (`ollama serve` running on host)
 - ~40GB free disk space for model weights
@@ -60,17 +60,17 @@ To restart or reset an interview, delete `workspace/{project-name}/interview-sta
 
 ## Model Configuration
 
-Two models are used and **cannot run simultaneously** on a 24GB GPU:
+Two models are used and **can coexist** on a 24GB GPU (both are ~18GB):
 
 | Role | Model | VRAM | Used for |
 |------|-------|------|----------|
 | Speed | `qwen3.5:35b-a3b` | ~18GB | Interview turns, council reviewers |
-| Quality | `qwen3.5:35b` | ~23GB | PRD synthesis, council chair |
+| Quality | `qwen3:30b-a3b` | ~18GB | PRD synthesis, council chair |
 
 Pull both before running:
 ```bash
 ollama pull qwen3.5:35b-a3b
-ollama pull qwen3.5:35b
+ollama pull qwen3:30b-a3b
 ```
 
 The setup script handles this automatically.

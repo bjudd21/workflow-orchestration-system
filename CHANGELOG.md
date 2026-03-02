@@ -9,6 +9,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### In Progress
 - Phase 4: Council Review workflow
 
+### Fixed
+- Switched Council Chair quality model from `qwen3.5:35b` (~23GB VRAM) to `qwen3:30b-a3b` (~18GB VRAM) — prevents Ollama crash during Chair synthesis step. Both models now fit in 24GB GPU with room for context. Chair prompt updated to honor FR-4.5 spec (Consensus Points, Conflicts, Overall Verdict, Required Revisions)
+
 ---
 
 ## [0.3.0] — 2026-03-01
