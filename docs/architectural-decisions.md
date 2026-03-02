@@ -163,13 +163,141 @@ Phase 4 compliance audit identified critical specification gaps:
 
 ---
 
+## Decision 5: n8n State Management Constraint (AMENDED)
+
+**Date**: 2026-03-02 (evening session)
+**Status**: ✅ ACCEPTED (True MVP), 🔮 ROADMAP (Full MVP)
+**Decision Maker**: Brian Judd + Claude Sonnet 4.5
+
+### Context
+
+During Session 2/3A/3B implementation, discovered **critical n8n security constraint**:
+- n8n Code nodes run in a sandbox that blocks ALL Node.js built-in modules
+- `require('fs')`, `require('http')`, `require('path')` etc. are **FORBIDDEN**
+- Any workflow using `require()` will fail on import with "Module disallowed" error
+
+**Impact on Decision 1:**
+- Original plan: Use `fs.readFileSync()` and `fs.writeFileSync()` for workspace state files
+- Reality: Cannot use `require('fs')` in n8n workflows
+- Must choose between: (A) workspace state files + broken imports, or (B) n8n-native patterns + no durability
+
+### Decision (True MVP)
+
+**Accept pure n8n data flow without durable state files**
+
+**Implementation:**
+- All data passed through n8n's native data flow: `$('Node Name').first().json`
+- File operations use n8n's built-in Read Binary File / Write Binary File nodes
+- HTTP operations use n8n's built-in HTTP Request nodes
+- Zero `require()` calls in any Code nodes
+
+**FR-8.4.3 Compliance Status:**
+- ✅ Pre-flight checks (FR-8.4.4): Ollama health check before starting
+- ✅ Clear error messages: Workflow fails fast with context
+- ❌ **Durable state**: Reviewer outputs NOT preserved across n8n restarts
+- ⚠️ **Partial compliance only**
+
+### Rationale
+
+1. **n8n imports must work** - Non-negotiable for True MVP deployment
+2. **Reliability over perfection** - Pure n8n data flow is stable and debuggable
+3. **Acceptable risk** - Council review typically completes in one session (~20 min)
+4. **Clear upgrade path** - Full MVP can add proper durability (see below)
+
+### Known Limitations (True MVP)
+
+**If n8n crashes during council review:**
+- All reviewer outputs lost (R1-R4 progress discarded)
+- Must restart entire council review from beginning
+- ~15-20 minutes of LLM inference time wasted
+
+**Mitigation:**
+- n8n runs in Docker with restart policies
+- Council review completes quickly (low probability of crash)
+- User can see progress in UI (knows if review is running)
+
+### Long-Term Solution (Full MVP)
+
+**RECOMMENDATION: Implement durable state using n8n's PostgreSQL database**
+
+**Approach:**
+```
+Code - Build State
+  ↓
+Execute Query - Write State
+  sql: INSERT INTO workflow_state (execution_id, step, data) VALUES (...)
+  ↓
+[Run LLM Call]
+  ↓
+Code - Process Response
+  ↓
+Execute Query - Update State
+  sql: UPDATE workflow_state SET step='R2', data=... WHERE execution_id=...
+```
+
+**Benefits:**
+- ✅ Full FR-8.4.3 compliance (durable state)
+- ✅ n8n compatible (no require() calls)
+- ✅ Survives Docker restarts
+- ✅ Can resume from last successful LLM call
+- ✅ Audit trail in database
+
+**Implementation Effort:** 4-6 hours
+- Create workflow_state table schema
+- Add Execute Query nodes before/after each LLM call
+- Add resume logic to detect incomplete executions
+- Test Docker restart mid-workflow
+
+**Alternative:** External state service (Redis, separate API)
+- Requires additional infrastructure
+- More complex deployment
+- Only consider if PostgreSQL approach has issues
+
+### Impact on Other Phases
+
+**Phase 2 (Interview):**
+- Currently has `require('fs')` in workflow file
+- Old version running in n8n still works (pre-Session 2)
+- Fresh import will FAIL
+- **Action needed:** Separate cleanup issue to remove require() calls
+
+**Phase 3 (PRD Synthesis):**
+- Already uses pure n8n data flow
+- No changes needed
+- ✅ Works correctly
+
+**Phase 4 (Council Review):**
+- ✅ Implemented with pure n8n data flow
+- ✅ Zero require() calls
+- ✅ Works correctly
+- ⚠️ No durable state (upgrade in Full MVP)
+
+**Phase 5-6 (Future):**
+- Follow Phase 4 pattern (pure n8n data flow)
+- Add PostgreSQL state in Full MVP when implementing FR-8.4.3 properly
+
+### Alternatives Considered
+
+1. **Keep workspace state files with require('fs')** - Rejected (workflows won't import)
+2. **Use external state API** - Deferred (adds infrastructure complexity)
+3. **Accept no durability permanently** - Rejected (violates FR-8.4.3 for production)
+
+---
+
 ## Summary
 
 | Decision | Status | Impact |
 |----------|--------|--------|
-| Workspace state pattern | ✅ APPROVED | Standard for all multi-step workflows |
+| Workspace state pattern | ⚠️ AMENDED | See Decision 5 - n8n constraint |
+| n8n state constraint | ✅ ACCEPTED | Pure data flow (True MVP), PostgreSQL (Full MVP) |
 | Specialist selection | ✅ DEFERRED | Full MVP only (Core 4 in True MVP) |
 | Timeline investment | ✅ APPROVED | 8-12 hours to spec compliance |
 | Implementation sequence | ✅ APPROVED | Smart order prevents rework |
 
-**Next Action**: Create GitHub issues and begin Session 2 (Foundational Fixes)
+**Current Status (2026-03-02 evening):**
+- ✅ Session 2, 3A, 3B complete
+- ✅ Phase 4 functional (51 nodes, zero require() calls)
+- ⚠️ FR-8.4.3 partial compliance (no durable state in True MVP)
+- 🔮 Full MVP roadmap: Add PostgreSQL state management
+
+**Next Action**: Test Phase 4 end-to-end, merge PR #64
