@@ -379,7 +379,7 @@
       ],
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={\"success\": true, \"review_text\": {{ $json.reviewText }}, \"verdict\": {{ $json.verdict }}, \"review_number\": {{ $json.reviewNum }}, \"project\": {{ $json.project }} }",
+        "responseBody": "={{ JSON.stringify({ success: true, review_text: $json.reviewText, verdict: $json.verdict, review_number: $json.reviewNum, project: $json.project }) }}",
         "options": {
           "responseHeaders": {
             "entries": [
