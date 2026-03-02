@@ -90,14 +90,13 @@
           "response": {
             "response": {
               "neverError": true,
-              "responseFormat": "json",
-              "fullResponse": false
+              "responseFormat": "json"
             }
-          }
+          },
+          "destinationDataField": "healthCheck"
         }
       },
-      "continueOnFail": true,
-      "alwaysOutputData": true
+      "continueOnFail": true
     },
     {
       "id": "28478708-c332-41f6-aef2-e797fd433aca",
@@ -119,7 +118,7 @@
           "conditions": [
             {
               "id": "reach",
-              "leftValue": "={{ Array.isArray($json.models) }}",
+              "leftValue": "={{ Array.isArray($json.healthCheck?.models) }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
