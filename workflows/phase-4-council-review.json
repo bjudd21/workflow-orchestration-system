@@ -483,7 +483,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[0];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    ...d,\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[0];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    _context: d,  // Preserve ALL data here\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
       }
     },
     {
@@ -517,7 +517,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const buildData = $('Code - Build R1 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData,\n    r1: httpResponse.message.content,\n    r1name: 'Technical Reviewer'\n  }\n}];"
+        "jsCode": "const buildData = $('Code - Build R1 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData._context,  // Restore all original data\n    r1: httpResponse.message.content,\n    r1name: 'Technical Reviewer'\n  }\n}];"
       }
     },
     {
@@ -530,7 +530,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[1];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    ...d,\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[1];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    _context: d,  // Preserve ALL data here\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
       }
     },
     {
@@ -564,7 +564,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const buildData = $('Code - Build R2 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData,\n    r2: httpResponse.message.content,\n    r2name: 'Security Reviewer'\n  }\n}];"
+        "jsCode": "const buildData = $('Code - Build R2 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData._context,  // Restore all original data\n    r2: httpResponse.message.content,\n    r2name: 'Security Reviewer'\n  }\n}];"
       }
     },
     {
@@ -577,7 +577,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[2];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    ...d,\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[2];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    _context: d,  // Preserve ALL data here\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
       }
     },
     {
@@ -611,7 +611,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const buildData = $('Code - Build R3 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData,\n    r3: httpResponse.message.content,\n    r3name: 'Executive Reviewer'\n  }\n}];"
+        "jsCode": "const buildData = $('Code - Build R3 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData._context,  // Restore all original data\n    r3: httpResponse.message.content,\n    r3name: 'Executive Reviewer'\n  }\n}];"
       }
     },
     {
@@ -624,7 +624,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[3];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    ...d,\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[3];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nreturn [{\n  json: {\n    _context: d,  // Preserve ALL data here\n    model: 'qwen3.5:35b-a3b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ]\n  }\n}];"
       }
     },
     {
@@ -658,7 +658,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const buildData = $('Code - Build R4 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData,\n    r4: httpResponse.message.content,\n    r4name: 'User Advocate'\n  }\n}];"
+        "jsCode": "const buildData = $('Code - Build R4 Request').first().json;\nconst httpResponse = $input.first().json;\n\nreturn [{\n  json: {\n    ...buildData._context,  // Restore all original data\n    r4: httpResponse.message.content,\n    r4name: 'User Advocate'\n  }\n}];"
       }
     }
   ],
