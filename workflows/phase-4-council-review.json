@@ -86,7 +86,13 @@
         "method": "GET",
         "url": "http://host.docker.internal:11434/api/tags",
         "options": {
-          "timeout": 10000
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "destinationDataField": "healthCheck"
         }
       },
       "continueOnFail": true
@@ -111,7 +117,7 @@
           "conditions": [
             {
               "id": "reach",
-              "leftValue": "={{ Array.isArray($json.models) }}",
+              "leftValue": "={{ Array.isArray($json.healthCheck?.models) }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
