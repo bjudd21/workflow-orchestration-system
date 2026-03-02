@@ -332,7 +332,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst sys = `${d.chair.prompt}\\n\\n# Skills\\n\\n${d.chair.skills}`;\nconst allRev = `## Reviewer Outputs\\n\\n### ${d.r1name}\\n\\n${d.r1}\\n\\n---\\n\\n### ${d.r2name}\\n\\n${d.r2}\\n\\n---\\n\\n### ${d.r3name}\\n\\n${d.r3}\\n\\n---\\n\\n### ${d.r4name}\\n\\n${d.r4}\\n\\n---`;\nconst prdV = d.prd.match(/version:\\s*(v\\d+)/i)?.[1] || 'v1';\nconst usr = `You are the Council Chair. Synthesize these reviews.\\n\\nPRD VERSION: ${prdV}\\n\\n${allRev}\\n\\nProvide synthesis per system prompt format.`;\nconst requestBody = {\n  model: \"qwen3.5:35b\",\n  prompt: sys + \"\\n\\n\" + usr,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    num_predict: 6000\n  }\n};\nreturn [{ json: { ...d, allRev, prdV, sys, usr, requestBody } }];"
+        "jsCode": "const d = $input.first().json;\nconst sys = `${d.chair.prompt}\\n\\n# Skills\\n\\n${d.chair.skills}`;\nconst allRev = `## Reviewer Outputs\\n\\n### ${d.r1name}\\n\\n${d.r1}\\n\\n---\\n\\n### ${d.r2name}\\n\\n${d.r2}\\n\\n---\\n\\n### ${d.r3name}\\n\\n${d.r3}\\n\\n---\\n\\n### ${d.r4name}\\n\\n${d.r4}\\n\\n---`;\nconst prdV = d.prd.match(/version:\\s*(v\\d+)/i)?.[1] || 'v1';\nconst usr = `You are the Council Chair. Synthesize these reviews.\\n\\nPRD VERSION: ${prdV}\\n\\n${allRev}\\n\\nProvide synthesis per system prompt format.`;\n\nreturn [{\n  json: {\n    _context: d,  // Preserve ALL data\n    model: 'qwen3.5:35b',\n    messages: [\n      { role: 'system', content: sys },\n      { role: 'user', content: usr }\n    ],\n    allRev,\n    prdV\n  }\n}];"
       }
     },
     {
@@ -346,10 +346,11 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "http://host.docker.internal:11434/api/generate",
+        "url": "http://host.docker.internal:11434/api/chat",
         "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json.requestBody }}",
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: $json.model, messages: $json.messages, stream: false, think: false }) }}",
         "options": {
           "timeout": 300000
         }
@@ -365,7 +366,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst chair = d.response;\nconst vm = chair.match(/Overall Verdict:\\s*(APPROVED|APPROVED WITH CONCERNS|REVISE AND RESUBMIT)/i);\nconst verdict = vm ? vm[1] : 'APPROVED WITH CONCERNS';\nconst reviewText = `---\\nphase: council-review\\nproject: ${d.project}\\nreview_number: ${d.reviewNum}\\ndate: ${new Date().toISOString().split('T')[0]}\\nprd_version_reviewed: ${d.prdV}\\nreviewers:\\n  - technical-reviewer\\n  - security-reviewer\\n  - executive-reviewer\\n  - user-advocate\\n  - council-chair\\noverall_verdict: ${verdict}\\nstatus: PENDING\\n---\\n\\n# Council Review \u2014 ${d.project}\\n\\n## Reviewer Outputs\\n\\n### Technical Reviewer\\n\\n${d.r1}\\n\\n---\\n\\n### Security Reviewer\\n\\n${d.r2}\\n\\n---\\n\\n### Executive Reviewer\\n\\n${d.r3}\\n\\n---\\n\\n### User Advocate\\n\\n${d.r4}\\n\\n---\\n\\n## Council Chair Synthesis\\n\\n${chair}\\n\\n---\\n\\n## User Decisions\\n\\n**Status**: PENDING\\n\\nUser review in progress.\\n\\n---\\n\\n## PRD Revision Log\\n\\n**PRD version before council**: ${d.prdV}\\n**PRD version after revisions**: (pending)\\n\\n### Changes Made\\n\\n(pending)\\n\\n---\\n\\n## Re-Review Status\\n\\n**Gate Decision**: (pending)\\n**Decision Date**: (pending)\\n**Rationale**: (pending)\\n`;\nreturn [{ json: { ...d, reviewText, verdict } }];"
+        "jsCode": "const buildData = $('Code - Build Chair Request').first().json;\nconst httpResponse = $input.first().json;\nconst d = buildData._context;\n\nconst chairReview = httpResponse.message.content;\n\n// Extract verdict from chair review\nlet verdict = 'NEEDS_REVISION';\nif (/verdict:\\s*approved/i.test(chairReview) || /\\bAPPROVED\\b/i.test(chairReview)) {\n  verdict = 'APPROVED';\n}\n\n// Assemble full review text\nconst reviewText = `# Council Review \u2014 ${d.project}\\n\\n${chairReview}`;\n\nreturn [{\n  json: {\n    ...d,\n    reviewText,\n    verdict,\n    reviewNum: 1,\n    project: d.project\n  }\n}];"
       }
     },
     {
