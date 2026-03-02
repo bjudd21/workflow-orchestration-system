@@ -141,7 +141,7 @@
       ],
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={\"error\": \"Ollama unreachable. Ensure qwen3:30b-a3b-a3b and qwen3:30b-a3b are loaded.\"}",
+        "responseBody": "={\"error\": \"Ollama unreachable. Ensure qwen3.5:35b-a3b-a3b and qwen3.5:35b-a3b are loaded.\"}",
         "options": {
           "responseCode": 503,
           "responseHeaders": {
@@ -539,7 +539,7 @@
         },
         "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3:30b-a3b\",\n  \"prompt\": \"Respond with: ready\",\n  \"stream\": false,\n  \"options\": {\n    \"num_predict\": 10\n  }\n}"
+        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": \"Respond with: ready\",\n  \"stream\": false,\n  \"options\": {\n    \"num_predict\": 10\n  }\n}"
       },
       "continueOnFail": true,
       "retryOnFail": true,
@@ -578,7 +578,7 @@
         },
         "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3:30b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 6000\n  }\n}"
+        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 6000\n  }\n}"
       },
       "retryOnFail": true,
       "maxTries": 3,
@@ -842,7 +842,7 @@
         6550
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\n\n// Build PRD Writer prompt for revisions\nconst systemPrompt = `You are the PRD Writer. Apply the following council recommendations to the PRD below.\n\nCOUNCIL RECOMMENDATIONS TO APPLY:\n${d.revisions}\n\nCURRENT PRD (${d.currentVersion}):\n${d.currentPRD}\n\nINSTRUCTIONS:\n- Apply ONLY the specific recommendations listed above\n- Maintain all existing sections and structure\n- Update the version in frontmatter to ${d.newVersion}\n- Preserve all other content unchanged\n- Output the complete updated PRD\n\nOUTPUT: Complete revised PRD with version ${d.newVersion}`;\n\nreturn [{\n  json: {\n    model: \"qwen3:30b-a3b\",\n    prompt: systemPrompt,\n    stream: False,\n    temperature: 0.7,\n    num_predict: 8000\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\n\n// Build PRD Writer prompt for revisions\nconst systemPrompt = `You are the PRD Writer. Apply the following council recommendations to the PRD below.\n\nCOUNCIL RECOMMENDATIONS TO APPLY:\n${d.revisions}\n\nCURRENT PRD (${d.currentVersion}):\n${d.currentPRD}\n\nINSTRUCTIONS:\n- Apply ONLY the specific recommendations listed above\n- Maintain all existing sections and structure\n- Update the version in frontmatter to ${d.newVersion}\n- Preserve all other content unchanged\n- Output the complete updated PRD\n\nOUTPUT: Complete revised PRD with version ${d.newVersion}`;\n\nreturn [{\n  json: {\n    model: \"qwen3.5:35b-a3b\",\n    prompt: systemPrompt,\n    stream: False,\n    temperature: 0.7,\n    num_predict: 8000\n  }\n}];"
       }
     },
     {
