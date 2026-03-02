@@ -70,7 +70,7 @@
         6300
       ],
       "parameters": {
-        "jsCode": "const body = $input.first().json.body;\nconst project = (body.project || '').trim().toLowerCase().replace(/\\s+/g, '-');\nconst action = body.action || 'review';\nif (!project) throw new Error('project required');\nif (!['review', 'decide', 'gate'].includes(action)) throw new Error('invalid action');\n\nconst wp = `/home/node/workspace/${project}`;\nconst reviewNum = 1;\nconst councilHandoff = `${wp}/handoffs/004-council-review.md`;\n\nreturn [{\n  json: {\n    project,\n    action,\n    decision: body.decision || '',\n    gateDecision: body.gate_decision || '',\n    revisions: body.revisions || '',\n    reviewNum,\n    wp,\n    prdHandoff: `${wp}/handoffs/003-prd-refined.md`,\n    councilHandoff,\n    prdDir: `${wp}/tasks`,\n    promptsDir: '/home/node/prompts',\n    skillsDir: '/home/node/skills'\n  }\n}];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst body = $input.first().json.body;\nconst project = (body.project || '').trim().toLowerCase().replace(/\\s+/g, '-');\nconst action = body.action || 'review';\nif (!project) throw new Error('project required');\nif (!['review', 'decide', 'gate'].includes(action)) throw new Error('invalid action');\n\nconst wp = `/home/node/workspace/${project}`;\nconst reviewNum = 1;\n\n// Create initial state\nconst state = {\n  project,\n  action,\n  decision: body.decision || '',\n  gateDecision: body.gate_decision || '',\n  revisions: body.revisions || '',\n  reviewNum,\n  wp,\n  prdHandoff: `${wp}/handoffs/003-prd-refined.md`,\n  councilHandoff: `${wp}/handoffs/004-council-review.md`,\n  prdDir: `${wp}/tasks`,\n  promptsDir: '/home/node/prompts',\n  skillsDir: '/home/node/skills'\n};\n\nwriteState(state);\n\n// Return action in json for IF node routing\nreturn [{ json: { executionId: $execution.id, project, action } }];\n"
       }
     },
     {
@@ -88,14 +88,17 @@
         "options": {
           "response": {
             "response": {
+              "fullResponse": false,
               "neverError": true,
               "responseFormat": "json"
             }
-          },
-          "destinationDataField": "healthCheck"
-        }
+          }
+        },
+        "sendBody": false,
+        "sendHeaders": false,
+        "sendQuery": false
       },
-      "continueOnFail": true
+      "alwaysOutputData": true
     },
     {
       "id": "28478708-c332-41f6-aef2-e797fd433aca",
@@ -117,7 +120,7 @@
           "conditions": [
             {
               "id": "reach",
-              "leftValue": "={{ Array.isArray($json.healthCheck?.models) }}",
+              "leftValue": "={{ Array.isArray($json.models) }}",
               "rightValue": true,
               "operator": {
                 "type": "boolean",
@@ -140,7 +143,7 @@
       ],
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={\"error\": \"Ollama unreachable. Ensure qwen3.5:35b-a3b and qwen3.5:35b are loaded.\"}",
+        "responseBody": "={\"error\": \"Ollama unreachable. Ensure qwen3.5:35b-a3b and qwen3:30b-a3b are loaded.\"}",
         "options": {
           "responseCode": 503,
           "responseHeaders": {
@@ -221,15 +224,14 @@
     {
       "id": "3ede513b-7ddb-44c5-9cdc-0b86f64635e4",
       "name": "Read - PRD File",
-      "type": "n8n-nodes-base.readBinaryFile",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         15900,
         6100
       ],
       "parameters": {
-        "filePath": "={{ $json.prdHandoff }}",
-        "options": {}
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst filePath = state.prdHandoff;\n\nif (!fs.existsSync(filePath)) {\n  throw new Error(`PRD not found at ${filePath}. Run Phase 3 first.`);\n}\n\nconst fileData = fs.readFileSync(filePath);\nreturn [{\n  json: { ok: true },\n  binary: {\n    data: {\n      data: fileData,\n      mimeType: 'text/markdown',\n      fileName: 'prd.md'\n    }\n  }\n}];\n"
       }
     },
     {
@@ -242,7 +244,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst prd = d.prd;\nconst e = [];\nconst fm = prd.match(/^---\\n([\\s\\S]*?)\\n---/);\nif (!fm) e.push('Missing frontmatter');\nelse {\n  const f = fm[1];\n  if (!/phase:\\s*prd-synthesis/.test(f)) e.push('phase must be prd-synthesis');\n  if (!/version:\\s*v\\d+/.test(f)) e.push('version missing');\n}\nconst secs = [\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Executive Summary/i, 'Executive Summary'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Functional Requirements/i, 'Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional Requirements/i, 'Non-Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?User Stories/i, 'User Stories'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Architecture/i, 'Architecture'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk/i, 'Risk Assessment'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?MVP/i, 'MVP']\n];\nfor (const [p, n] of secs) if (!p.test(prd)) e.push(`Missing ${n}`);\nconst frCt = (prd.match(/\\*\\*FR-\\d+:/g) || []).length;\nif (frCt < 3) e.push(`< 3 FRs (${frCt})`);\nconst nfr = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional[\\s\\S]*?(?=\\n#{1,3}\\s)/i)?.[0] || '';\nif (nfr && !/\\d+\\s*(?:ms|s|%|concurrent|users|GB|MB)/.test(nfr)) e.push('NFR lacks numeric targets');\nconst usCt = (prd.match(/\\*\\*US-\\d+:/g) || []).length;\nif (usCt < 3) e.push(`< 3 user stories (${usCt})`);\nconst risk = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk[\\s\\S]*?(?=\\n#{1,3}\\s|$)/i)?.[0] || '';\nconst riskRows = (risk.match(/\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|/g) || []).filter(r => !r.includes('---') && !/likelihood/i.test(r));\nif (riskRows.length < 2) e.push(`< 2 risks (${riskRows.length})`);\nif (e.length > 0) return [{ json: { ...d, valid: false, errors: e } }];\nreturn [{ json: { ...d, valid: true } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst prd = state.prd;\nconst e = [];\n\nconst fm = prd.match(/^---\\n([\\s\\S]*?)\\n---/);\nif (!fm) e.push('Missing frontmatter');\nelse {\n  const f = fm[1];\n  if (!/phase:\\s*prd-synthesis/.test(f)) e.push('phase must be prd-synthesis');\n  if (!/version:\\s*v\\d+/.test(f)) e.push('version missing');\n}\n\nconst secs = [\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Executive Summary/i, 'Executive Summary'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Functional Requirements/i, 'Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional Requirements/i, 'Non-Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?User Stories/i, 'User Stories'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Architecture/i, 'Architecture'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk/i, 'Risk Assessment'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?MVP/i, 'MVP']\n];\n\nfor (const [p, n] of secs) if (!p.test(prd)) e.push(`Missing ${n}`);\n\nconst frCt = (prd.match(/\\*\\*FR-\\d+:/g) || []).length;\nif (frCt < 3) e.push(`< 3 FRs (${frCt})`);\n\nconst nfr = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional[\\s\\S]*?(?=\\n#{1,3}\\s)/i)?.[0] || '';\nif (nfr && !/\\d+\\s*(?:ms|s|%|concurrent|users|GB|MB)/.test(nfr)) e.push('NFR lacks numeric targets');\n\nconst usCt = (prd.match(/\\*\\*US-\\d+:/g) || []).length;\nif (usCt < 3) e.push(`< 3 user stories (${usCt})`);\n\nconst risk = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk[\\s\\S]*?(?=\\n#{1,3}\\s|$)/i)?.[0] || '';\nconst riskRows = (risk.match(/\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|/g) || []).filter(r => !r.includes('---') && !/likelihood/i.test(r));\nif (riskRows.length < 2) e.push(`< 2 risks (${riskRows.length})`);\n\nconst valid = e.length === 0;\n\n// Write state\nstate.valid = valid;\nstate.errors = e;\nwriteState(state);\n\n// Return valid/errors in json for IF node routing\nreturn [{ json: { valid, errors: e } }];\n"
       }
     },
     {
@@ -288,7 +290,7 @@
       ],
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={\"error\": \"PRD validation failed\", \"errors\": {{ $json.errors }}}",
+        "responseBody": "={{ { \"error\": \"PRD validation failed\", \"errors\": $json.errors } }}",
         "options": {
           "responseCode": 400,
           "responseHeaders": {
@@ -312,7 +314,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\n\n// Reviewer definitions - files will be read separately\nconst reviewers = [\n  { name: 'Technical Reviewer', prompt: 'prd-council/core/technical-reviewer.md', skills: ['council/technical-review.md'] },\n  { name: 'Security Reviewer', prompt: 'prd-council/core/security-reviewer.md', skills: ['council/security-review.md'] },\n  { name: 'Executive Reviewer', prompt: 'prd-council/core/executive-reviewer.md', skills: ['council/business-alignment.md'] },\n  { name: 'User Advocate', prompt: 'prd-council/core/user-advocate.md', skills: ['council/ux-review.md'] }\n];\n\n// Build full paths and read inline (n8n will read files via Read nodes)\nconst items = reviewers.map((r, i) => ({\n  json: {\n    ...d,\n    reviewerIndex: i + 1,\n    reviewerName: r.name,\n    promptPath: `${d.promptsDir}/${r.prompt}`,\n    skillPaths: r.skills.map(s => `${d.skillsDir}/${s}`)\n  }\n}));\n\nreturn items;"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\n\nconst reviewers = [\n  {\n    role: 'Technical Reviewer',\n    promptFile: `${state.promptsDir}/prd-council/core/technical-reviewer.md`,\n    skillsFiles: [\n      `${state.skillsDir}/council/technical-review.md`\n    ]\n  },\n  {\n    role: 'Security Reviewer',\n    promptFile: `${state.promptsDir}/prd-council/core/security-reviewer.md`,\n    skillsFiles: [\n      `${state.skillsDir}/council/security-review.md`\n    ]\n  },\n  {\n    role: 'Executive Reviewer',\n    promptFile: `${state.promptsDir}/prd-council/core/executive-reviewer.md`,\n    skillsFiles: [\n      `${state.skillsDir}/council/business-alignment.md`\n    ]\n  },\n  {\n    role: 'User Advocate',\n    promptFile: `${state.promptsDir}/prd-council/core/user-advocate.md`,\n    skillsFiles: [\n      `${state.skillsDir}/council/ux-review.md`\n    ]\n  }\n];\n\n// Load prompts and skills\nfor (const r of reviewers) {\n  r.prompt = fs.readFileSync(r.promptFile, 'utf8');\n  r.skills = r.skillsFiles.map(f => fs.readFileSync(f, 'utf8')).join('\\n\\n');\n}\n\nstate.reviewers = reviewers;\nwriteState(state);\nreturn [{ json: { ok: true } }];\n"
       }
     },
     {
@@ -325,7 +327,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[0];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, idx: 0, sys, usr } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst r = state.reviewers[0];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${state.prd}\\n\\nProvide your review per the system prompt format.`;\nconst fullPrompt = sys + \"\\n\\n\" + usr;\n\n// Return as object, not stringified - HTTP node will handle serialization\nstate.r1Sys = sys;\nstate.r1Usr = usr;\nwriteState(state);\n\nreturn [{ \n  json: { \n    model: \"qwen3.5:35b-a3b\",\n    prompt: fullPrompt,\n    stream: false,\n    temperature: 0.7,\n    num_predict: 4000\n  } \n}];\n"
       }
     },
     {
@@ -341,13 +343,16 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "raw",
-        "options": {
-          "timeout": 300000
-        },
-        "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 300000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
       }
     },
     {
@@ -360,7 +365,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r1: d.response, r1name: 'Technical Reviewer' } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst response = $input.first().json.response;\n\nstate.r1 = response;\nstate.r1name = state.reviewers[0].role;\nwriteState(state);\n\nreturn [{ json: { ok: true } }];\n"
       }
     },
     {
@@ -373,7 +378,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[1];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst r = state.reviewers[1];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${state.prd}\\n\\nProvide your review per the system prompt format.`;\nconst fullPrompt = sys + \"\\n\\n\" + usr;\n\nstate.r2Sys = sys;\nstate.r2Usr = usr;\nwriteState(state);\n\nreturn [{ \n  json: { \n    model: \"qwen3.5:35b-a3b\",\n    prompt: fullPrompt,\n    stream: false,\n    temperature: 0.7,\n    num_predict: 4000\n  } \n}];\n"
       }
     },
     {
@@ -389,13 +394,16 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "raw",
-        "options": {
-          "timeout": 300000
-        },
-        "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 300000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
       }
     },
     {
@@ -408,7 +416,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r2: d.response, r2name: 'Security Reviewer' } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst response = $input.first().json.response;\n\nstate.r2 = response;\nstate.r2name = state.reviewers[1].role;\nwriteState(state);\n\nreturn [{ json: { ok: true } }];\n"
       }
     },
     {
@@ -421,7 +429,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[2];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst r = state.reviewers[2];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${state.prd}\\n\\nProvide your review per the system prompt format.`;\nconst fullPrompt = sys + \"\\n\\n\" + usr;\n\nstate.r3Sys = sys;\nstate.r3Usr = usr;\nwriteState(state);\n\nreturn [{ \n  json: { \n    model: \"qwen3.5:35b-a3b\",\n    prompt: fullPrompt,\n    stream: false,\n    temperature: 0.7,\n    num_predict: 4000\n  } \n}];\n"
       }
     },
     {
@@ -437,13 +445,16 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "raw",
-        "options": {
-          "timeout": 300000
-        },
-        "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 300000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
       }
     },
     {
@@ -456,7 +467,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r3: d.response, r3name: 'Executive Reviewer' } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst response = $input.first().json.response;\n\nstate.r3 = response;\nstate.r3name = state.reviewers[2].role;\nwriteState(state);\n\nreturn [{ json: { ok: true } }];\n"
       }
     },
     {
@@ -469,7 +480,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[3];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst r = state.reviewers[3];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${state.prd}\\n\\nProvide your review per the system prompt format.`;\nconst fullPrompt = sys + \"\\n\\n\" + usr;\n\nstate.r4Sys = sys;\nstate.r4Usr = usr;\nwriteState(state);\n\nreturn [{ \n  json: { \n    model: \"qwen3.5:35b-a3b\",\n    prompt: fullPrompt,\n    stream: false,\n    temperature: 0.7,\n    num_predict: 4000\n  } \n}];\n"
       }
     },
     {
@@ -485,13 +496,16 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "raw",
-        "options": {
-          "timeout": 300000
-        },
-        "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 300000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
       }
     },
     {
@@ -504,7 +518,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r4: d.response, r4name: 'User Advocate' } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst response = $input.first().json.response;\n\nstate.r4 = response;\nstate.r4name = state.reviewers[3].role;\nwriteState(state);\n\nreturn [{ json: { ok: true } }];\n"
       }
     },
     {
@@ -526,7 +540,7 @@
         },
         "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3.5:35b\",\n  \"prompt\": \"Respond with: ready\",\n  \"stream\": false,\n  \"options\": {\n    \"num_predict\": 10\n  }\n}"
+        "jsonBody": "={\n  \"model\": \"qwen3:30b-a3b\",\n  \"prompt\": \"Respond with: ready\",\n  \"stream\": false,\n  \"options\": {\n    \"num_predict\": 10\n  }\n}"
       },
       "continueOnFail": true
     },
@@ -540,7 +554,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\n\n// Note: In production, prompt/skill files would be read separately\n// For MVP, using inline placeholders\nconst chairPromptPlaceholder = \\`You are the Council Chair. Synthesize all reviewer feedback into a unified assessment.\n\nOUTPUT FORMAT:\n## Consensus Points\n[List areas where reviewers agree]\n\n## Conflicts\n[List areas where reviewers disagree]\n\n## Overall Verdict\n[APPROVED / APPROVED WITH CONCERNS / REVISE AND RESUBMIT]\n\n## Required Revisions\n[Numbered list if verdict is not APPROVED]\\`;\n\nconst sys = chairPromptPlaceholder;\nconst allRev = \\`## Reviewer Outputs\n\n### \\${d.r1name}\n\n\\${d.r1}\n\n---\n\n### \\${d.r2name}\n\n\\${d.r2}\n\n---\n\n### \\${d.r3name}\n\n\\${d.r3}\n\n---\n\n### \\${d.r4name}\n\n\\${d.r4}\n\n---\\`;\n\nconst usr = \\`Synthesize these 4 reviews into a unified council assessment:\\n\\n\\${allRev}\\`;\n\nreturn [{ json: { ...d, sys, usr } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\n\nconst fullPrompt = `You are the Council Chair. Synthesize the 4 reviews below.\n\n# Review 1: ${state.r1name}\n${state.r1}\n\n# Review 2: ${state.r2name}\n${state.r2}\n\n# Review 3: ${state.r3name}\n${state.r3}\n\n# Review 4: ${state.r4name}\n${state.r4}\n\nOUTPUT:\n## Consensus Points\nAreas where all reviewers agree\n\n## Conflicts\nAreas where reviewers disagree (present both sides)\n\n## Overall Verdict\n[APPROVED / APPROVED WITH CONCERNS / REVISE AND RESUBMIT]\n\n## Required Revisions\nSpecific, actionable changes (numbered list)`;\n\nstate.chairPrompt = fullPrompt;\nwriteState(state);\n\nreturn [{ \n  json: { \n    model: \"qwen3:30b-a3b\",\n    prompt: fullPrompt,\n    stream: false,\n    temperature: 0.7,\n    num_predict: 6000\n  } \n}];\n"
       }
     },
     {
@@ -556,13 +570,16 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "raw",
-        "options": {
-          "timeout": 300000
-        },
-        "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3.5:35b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 6000\n  }\n}"
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "timeout": 300000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
       }
     },
     {
@@ -575,7 +592,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst chair = d.response;\nconst vm = chair.match(/Overall Verdict:\\s*(APPROVED|APPROVED WITH CONCERNS|REVISE AND RESUBMIT)/i);\nconst verdict = vm ? vm[1] : 'APPROVED WITH CONCERNS';\nconst reviewText = `---\\nphase: council-review\\nproject: ${d.project}\\nreview_number: ${d.reviewNum}\\ndate: ${new Date().toISOString().split('T')[0]}\\nprd_version_reviewed: ${d.prdV}\\nreviewers:\\n  - technical-reviewer\\n  - security-reviewer\\n  - executive-reviewer\\n  - user-advocate\\n  - council-chair\\noverall_verdict: ${verdict}\\nstatus: PENDING\\n---\\n\\n# Council Review \u2014 ${d.project}\\n\\n## Reviewer Outputs\\n\\n### Technical Reviewer\\n\\n${d.r1}\\n\\n---\\n\\n### Security Reviewer\\n\\n${d.r2}\\n\\n---\\n\\n### Executive Reviewer\\n\\n${d.r3}\\n\\n---\\n\\n### User Advocate\\n\\n${d.r4}\\n\\n---\\n\\n## Council Chair Synthesis\\n\\n${chair}\\n\\n---\\n\\n## User Decisions\\n\\n**Status**: PENDING\\n\\nUser review in progress.\\n\\n---\\n\\n## PRD Revision Log\\n\\n**PRD version before council**: ${d.prdV}\\n**PRD version after revisions**: (pending)\\n\\n### Changes Made\\n\\n(pending)\\n\\n---\\n\\n## Re-Review Status\\n\\n**Gate Decision**: (pending)\\n**Decision Date**: (pending)\\n**Rationale**: (pending)\\n`;\nreturn [{ json: { ...d, reviewText, verdict } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\n\nconst reviewText = `# Council Review r${state.reviewNum}\n\n**Project**: ${state.project}\n**Date**: ${new Date().toISOString().split('T')[0]}\n**Verdict**: ${state.verdict}\n\n---\n\n## Reviewer Assessments\n\n### ${state.r1name}\n${state.r1}\n\n### ${state.r2name}\n${state.r2}\n\n### ${state.r3name}\n${state.r3}\n\n### ${state.r4name}\n${state.r4}\n\n---\n\n## Council Chair Synthesis\n${state.chair}\n`;\n\n// Write handoff file\nfs.writeFileSync(state.councilHandoff, reviewText, 'utf8');\n\nstate.reviewText = reviewText;\nwriteState(state);\n\nreturn [{ \n  json: { \n    review_text: reviewText,\n    review_number: state.reviewNum,\n    project: state.project,\n    verdict: state.verdict \n  } \n}];\n"
       }
     },
     {
@@ -589,7 +606,7 @@
       ],
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={\"success\": true, \"review_text\": {{ $json.reviewText }}, \"verdict\": {{ $json.verdict }}, \"review_number\": {{ $json.reviewNum }}, \"project\": {{ $json.project }} }",
+        "responseBody": "={{ { \"success\": true, \"review_text\": $json.review_text, \"verdict\": $json.verdict, \"review_number\": $json.review_number, \"project\": $json.project } }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -612,7 +629,7 @@
         6600
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst decision = d.decision;\nif (!decision) throw new Error('decision required (ACCEPTED or REJECTED)');\n\nconst revisions = d.revisions.trim();\nconst prdMatch = councilText.match(/prd_version_reviewed:\\s*(v\\d+)/);\nconst oldVer = prdMatch ? prdMatch[1] : 'v1';\nconst newVerNum = parseInt(oldVer.substring(1)) + 1;\nconst newVer = `v${newVerNum}`;\n\n// Update council handoff with decision\nconst today = new Date().toISOString().split('T')[0];\nconst decisionBlock = `\\n\\n---\\n## User Decision (${today})\\n\\n**Status**: ${decision}\\n${revisions ? `\\n**Revisions to Apply**:\\n${revisions}\\n` : ''}\\n---\\n`;\nconst updatedCouncil = councilText + decisionBlock;\n\nreturn [{\n  json: {\n    ...d,\n    decision,\n    oldPrdVersion: oldVer,\n    newPrdVersion: decision === 'ACCEPTED' ? newVer : oldVer,\n    councilHandoffContent: updatedCouncil,\n    message: `Decision recorded: ${decision}${decision === 'ACCEPTED' ? ` (PRD ${oldVer} \u2192 ${newVer})` : ''}`\n  }\n}];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst decision = state.decision;\nconst revisions = state.revisions;\n\n// Update PRD version if accepted\nlet newVersion = 'v1';\nif (decision === 'ACCEPTED') {\n  const prd = fs.readFileSync(state.prdHandoff, 'utf8');\n  const vMatch = prd.match(/version:\\s*v(\\d+)/);\n  const currentVer = vMatch ? parseInt(vMatch[1]) : 0;\n  newVersion = `v${currentVer + 1}`;\n  \n  // Update PRD frontmatter\n  const updatedPrd = prd.replace(/version:\\s*v\\d+/, `version: ${newVersion}`);\n  fs.writeFileSync(state.prdHandoff, updatedPrd, 'utf8');\n}\n\nstate.newPrdVersion = newVersion;\nstate.decisionRecorded = true;\nwriteState(state);\n\nreturn [{\n  json: {\n    decision,\n    new_prd_version: newVersion,\n    project: state.project\n  }\n}];\n"
       }
     },
     {
@@ -626,7 +643,7 @@
       ],
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={\"success\": true, \"decision\": {{ $json.decision }}, \"new_prd_version\": {{ $json.new_prd_version }}, \"project\": {{ $json.project }} }",
+        "responseBody": "={{ { \"success\": true, \"decision\": $json.decision, \"new_prd_version\": $json.new_prd_version, \"project\": $json.project } }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -649,7 +666,7 @@
         6900
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst gate = d.gateDecision;\nif (!gate) throw new Error('gate_decision required (PROCEED or RECONVENE)');\n\nconst today = new Date().toISOString().split('T')[0];\nconst rationale = gate === 'PROCEED' ?\n  'User approved proceeding to next phase.' :\n  'User requested council reconvene for re-review.';\n\nconst gateBlock = `\\n\\n---\\n## Re-Review Gate (${today})\\n\\n**Gate Decision**: ${gate}\\n**Rationale**: ${rationale}\\n---\\n`;\nconst updatedCouncil = councilText + gateBlock;\n\nconst nextReviewFile = gate === 'RECONVENE' ?\n  `${d.wp}/handoffs/004-council-review-r${d.reviewNum + 1}.md` :\n  '';\n\nreturn [{\n  json: {\n    ...d,\n    gateDecision: gate,\n    councilHandoffContent: updatedCouncil,\n    nextReviewFile,\n    message: `Gate decision: ${gate}${gate === 'RECONVENE' ? ` (next: r${d.reviewNum + 1})` : ''}`\n  }\n}];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst gateDecision = state.gateDecision;\n\nif (gateDecision === 'PROCEED') {\n  // Ready for Phase 5\n  return [{\n    json: {\n      gate: 'PROCEED',\n      message: 'Ready for Phase 5: Task Generation',\n      project: state.project\n    }\n  }];\n} else if (gateDecision === 'RECONVENE') {\n  // Prepare for re-review\n  const nextReviewNum = state.reviewNum + 1;\n  const nextReviewFile = `${state.wp}/handoffs/004-council-review-r${nextReviewNum}.md`;\n  \n  return [{\n    json: {\n      gate: 'RECONVENE',\n      next_review_file: nextReviewFile,\n      next_review_num: nextReviewNum,\n      project: state.project\n    }\n  }];\n}\n\nreturn [{\n  json: {\n    error: 'Invalid gate decision',\n    project: state.project\n  }\n}];\n"
       }
     },
     {
@@ -663,7 +680,7 @@
       ],
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={\"success\": true, \"gate_decision\": {{ $json.gate_decision }}, \"next_review_file\": {{ $json.next_review_file }}, \"project\": {{ $json.project }} }",
+        "responseBody": "={{ { \"success\": true, \"gate_decision\": $json.gate_decision, \"next_review_file\": $json.next_review_file, \"project\": $json.project } }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -679,15 +696,14 @@
     {
       "id": "65c9219a-0c63-43f2-84ce-015d9756d77e",
       "name": "Read - Council for Decision",
-      "type": "n8n-nodes-base.readBinaryFile",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         15750,
         6600
       ],
       "parameters": {
-        "filePath": "={{ $json.councilHandoff }}",
-        "options": {}
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst filePath = state.councilHandoff;\n\nif (!fs.existsSync(filePath)) {\n  throw new Error(`Council handoff not found at ${filePath}`);\n}\n\nconst fileData = fs.readFileSync(filePath);\nreturn [{\n  json: { ok: true },\n  binary: {\n    data: {\n      data: fileData,\n      mimeType: 'text/markdown',\n      fileName: 'council.md'\n    }\n  }\n}];\n"
       }
     },
     {
@@ -700,21 +716,20 @@
         6600
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first();\nlet councilFileContent = '';\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  councilFileContent = buffer.toString('utf8');\n}\nreturn [{ json: { ...d, councilFileContent } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst item = $input.first();\n\nlet councilFileContent = '';\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  councilFileContent = buffer.toString('utf8');\n}\n\nstate.councilFileContent = councilFileContent;\nwriteState(state);\n\nreturn [{ json: { ok: true } }];\n"
       }
     },
     {
       "id": "1a479721-3e4a-42dc-8b6b-4bf8744043f6",
       "name": "Read - Council for Gate",
-      "type": "n8n-nodes-base.readBinaryFile",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         15750,
         6900
       ],
       "parameters": {
-        "filePath": "={{ $json.councilHandoff }}",
-        "options": {}
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst filePath = state.councilHandoff;\n\nif (!fs.existsSync(filePath)) {\n  throw new Error(`Council handoff not found at ${filePath}`);\n}\n\nconst fileData = fs.readFileSync(filePath);\nreturn [{\n  json: { ok: true },\n  binary: {\n    data: {\n      data: fileData,\n      mimeType: 'text/markdown',\n      fileName: 'council.md'\n    }\n  }\n}];\n"
       }
     },
     {
@@ -727,7 +742,7 @@
         6900
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first();\nlet councilFileContent = '';\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  councilFileContent = buffer.toString('utf8');\n}\nreturn [{ json: { ...d, councilFileContent } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst item = $input.first();\n\nlet councilFileContent = '';\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  councilFileContent = buffer.toString('utf8');\n}\n\nstate.councilFileContent = councilFileContent;\nwriteState(state);\n\nreturn [{ json: { ok: true } }];\n"
       }
     },
     {
@@ -740,7 +755,33 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first();\nlet prd;\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  prd = buffer.toString('utf8');\n} else {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd } }];"
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst item = $input.first();\n\nlet prd;\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  prd = buffer.toString('utf8');\n} else {\n  throw new Error(`PRD not found at ${state.prdHandoff}. Run Phase 3 first.`);\n}\n\nstate.prd = prd;\nwriteState(state);\nreturn [{ json: { ok: true } }];\n"
+      }
+    },
+    {
+      "id": "save-chair-response-node-id",
+      "name": "Code - Save Chair",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        18900,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "// State management helpers\nconst fs = require('fs');\nconst stateFile = `/tmp/workflow-state-${$execution.id}.json`;\n\nfunction readState() {\n  if (fs.existsSync(stateFile)) {\n    return JSON.parse(fs.readFileSync(stateFile, 'utf8'));\n  }\n  return {};\n}\n\nfunction writeState(state) {\n  fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));\n}\n\nconst state = readState();\nconst response = $input.first().json.response;\n\nstate.chair = response;\n\n// Extract verdict\nconst verdictMatch = response.match(/verdict[:\\s]*(APPROVED|CONDITIONAL|REJECTED)/i);\nstate.verdict = verdictMatch ? verdictMatch[1].toUpperCase() : 'CONDITIONAL';\n\nwriteState(state);\nreturn [{ json: { ok: true } }];\n"
+      }
+    },
+    {
+      "id": "debug-r1-node-id",
+      "name": "Debug - R1 Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        17250,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst input = $input.first().json;\n\nconst debugData = {\n  executionId: $execution.id,\n  timestamp: new Date().toISOString(),\n  inputKeys: Object.keys(input),\n  hasModel: 'model' in input,\n  hasPrompt: 'prompt' in input,\n  model: input.model || null,\n  promptLength: input.prompt ? input.prompt.length : 0,\n  promptPreview: input.prompt ? input.prompt.substring(0, 300) : null,\n  stream: input.stream,\n  temperature: input.temperature,\n  num_predict: input.num_predict,\n  fullInput: input\n};\n\nconst debugFile = `/tmp/debug-r1-${$execution.id}.json`;\nfs.writeFileSync(debugFile, JSON.stringify(debugData, null, 2));\n\nreturn [$input.first()];\n"
       }
     }
   ],
@@ -887,7 +928,7 @@
       "main": [
         [
           {
-            "node": "HTTP - Run R1 (Tech)",
+            "node": "Debug - R1 Data",
             "type": "main",
             "index": 0
           }
@@ -1041,7 +1082,7 @@
       "main": [
         [
           {
-            "node": "Code - Assemble Output",
+            "node": "Code - Save Chair",
             "type": "main",
             "index": 0
           }
@@ -1141,6 +1182,28 @@
         [
           {
             "node": "Code - Validate PRD Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Save Chair": {
+      "main": [
+        [
+          {
+            "node": "Code - Assemble Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Debug - R1 Data": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Run R1 (Tech)",
             "type": "main",
             "index": 0
           }
