@@ -305,7 +305,7 @@
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b\", messages: $json.extraction_messages, stream: false }) }}",
+        "body": "={{ JSON.stringify({ model: \"qwen3:30b-a3b\", messages: $json.extraction_messages, stream: false }) }}",
         "options": {
           "timeout": 300000
         }
@@ -916,7 +916,7 @@
           "sendBody": true,
           "contentType": "raw",
           "rawContentType": "application/json",
-          "body": "={{ JSON.stringify({ model: \"qwen3.5:35b\", messages: $json.extraction_messages, stream: false }) }}",
+          "body": "={{ JSON.stringify({ model: \"qwen3:30b-a3b\", messages: $json.extraction_messages, stream: false }) }}",
           "options": {
             "timeout": 300000
           }
