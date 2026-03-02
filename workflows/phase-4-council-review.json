@@ -88,10 +88,8 @@
         "options": {
           "timeout": 10000,
           "response": {
-            "response": {
-              "neverError": true,
-              "responseFormat": "json"
-            }
+            "neverError": true,
+            "responseFormat": "json"
           },
           "destinationDataField": "healthCheck"
         }
