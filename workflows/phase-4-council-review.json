@@ -805,17 +805,6 @@
         ]
       ]
     },
-    "HTTP - Warm Quality Model": {
-      "main": [
-        [
-          {
-            "node": "Code - Build Chair Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Code - Build Chair Request": {
       "main": [
         [
@@ -996,7 +985,18 @@
       "main": [
         [
           {
-            "node": "HTTP - Warm Quality Model",
+            "node": "Code - Warm Quality Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Warm Quality Model": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Chair Request",
             "type": "main",
             "index": 0
           }
