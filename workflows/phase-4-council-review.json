@@ -309,190 +309,6 @@
       }
     },
     {
-      "id": "694ad70f-a4e6-42be-885f-5fce31df56cd",
-      "name": "Code - Build R1 Request",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        17100,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[0];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nconst requestBody = {\n  model: \"qwen3.5:35b-a3b\",\n  prompt: sys + \"\\n\\n\" + usr,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    num_predict: 4000\n  }\n};\nreturn [{ json: { ...d, idx: 0, sys, usr, requestBody } }];"
-      }
-    },
-    {
-      "id": "49a4f034-07bd-48bc-ae01-d59015d1c261",
-      "name": "HTTP - Run R1 (Tech)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        17400,
-        6100
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:11434/api/generate",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json.requestBody }}",
-        "options": {
-          "timeout": 300000
-        }
-      }
-    },
-    {
-      "id": "22a08b13-8e57-4f21-a208-1098b59123f7",
-      "name": "Code - Save R1",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        17700,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const httpResponse = $input.first().json;\nconst buildData = $node[\"Code - Build R1 Request\"].first().json;\nreturn [{ json: { ...buildData, r1: httpResponse.response, r1name: 'Technical Reviewer' } }];"
-      }
-    },
-    {
-      "id": "85aa7798-3334-4367-84b9-aa7fd761ace6",
-      "name": "Code - Build R2 Request",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        18000,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[1];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nconst requestBody = {\n  model: \"qwen3.5:35b-a3b\",\n  prompt: sys + \"\\n\\n\" + usr,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    num_predict: 4000\n  }\n};\nreturn [{ json: { ...d, idx: 1, sys, usr, requestBody } }];"
-      }
-    },
-    {
-      "id": "8860669d-d8db-4b3c-a73f-675ea9c16924",
-      "name": "HTTP - Run R2 (Sec)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        18300,
-        6100
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:11434/api/generate",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json.requestBody }}",
-        "options": {
-          "timeout": 300000
-        }
-      }
-    },
-    {
-      "id": "981af7db-d178-46a0-8472-d62e21e7cd4a",
-      "name": "Code - Save R2",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        18600,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const httpResponse = $input.first().json;\nconst buildData = $node[\"Code - Build R2 Request\"].first().json;\nreturn [{ json: { ...buildData, r2: httpResponse.response, r2name: 'Security Reviewer' } }];"
-      }
-    },
-    {
-      "id": "2927ab4c-d5ae-4a86-bf9a-2c6f7e9b67d2",
-      "name": "Code - Build R3 Request",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        18900,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[2];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nconst requestBody = {\n  model: \"qwen3.5:35b-a3b\",\n  prompt: sys + \"\\n\\n\" + usr,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    num_predict: 4000\n  }\n};\nreturn [{ json: { ...d, idx: 2, sys, usr, requestBody } }];"
-      }
-    },
-    {
-      "id": "be89ec3b-47d5-4a80-b399-145a26304dd8",
-      "name": "HTTP - Run R3 (Exec)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        19200,
-        6100
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:11434/api/generate",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json.requestBody }}",
-        "options": {
-          "timeout": 300000
-        }
-      }
-    },
-    {
-      "id": "712654d5-f0d7-4d39-bbc1-288ee48c7d11",
-      "name": "Code - Save R3",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        19500,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const httpResponse = $input.first().json;\nconst buildData = $node[\"Code - Build R3 Request\"].first().json;\nreturn [{ json: { ...buildData, r3: httpResponse.response, r3name: 'Executive Reviewer' } }];"
-      }
-    },
-    {
-      "id": "9d1b997d-6d1f-4782-82a3-9bbe725f782b",
-      "name": "Code - Build R4 Request",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        19800,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[3];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nconst requestBody = {\n  model: \"qwen3.5:35b-a3b\",\n  prompt: sys + \"\\n\\n\" + usr,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    num_predict: 4000\n  }\n};\nreturn [{ json: { ...d, idx: 3, sys, usr, requestBody } }];"
-      }
-    },
-    {
-      "id": "969bb818-a04f-4c46-be3d-2a30f0988bb5",
-      "name": "HTTP - Run R4 (User)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [
-        20100,
-        6100
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:11434/api/generate",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ $json.requestBody }}",
-        "options": {
-          "timeout": 300000
-        }
-      }
-    },
-    {
-      "id": "d1961ae8-7726-4d6a-aac5-76c3f58e6c07",
-      "name": "Code - Save R4",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        20400,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "const httpResponse = $input.first().json;\nconst buildData = $node[\"Code - Build R4 Request\"].first().json;\nreturn [{ json: { ...buildData, r4: httpResponse.response, r4name: 'User Advocate' } }];"
-      }
-    },
-    {
       "id": "fe99de91-8aac-4574-b787-a050129a87aa",
       "name": "HTTP - Warm Quality Model",
       "type": "n8n-nodes-base.httpRequest",
@@ -656,6 +472,58 @@
           }
         }
       }
+    },
+    {
+      "id": "9e5f59ac-8be8-4028-aa5a-d41cb40296c1",
+      "name": "Code - Run R1 (Tech)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        17100,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[0];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nconst requestBody = JSON.stringify({\n  model: \"qwen3.5:35b-a3b\",\n  prompt: sys + \"\\n\\n\" + usr,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    num_predict: 4000\n  }\n});\n\n// Call Ollama\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/generate',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      'Content-Length': Buffer.byteLength(requestBody)\n    },\n    timeout: 300000\n  };\n\n  const req = http.request(options, (res) => {\n    let data = '';\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r1: response.response, r1name: 'Technical Reviewer' } }]);\n      } catch(e) {\n        reject(new Error('Failed to parse Ollama response: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', (e) => { reject(e); });\n  req.on('timeout', () => {\n    req.destroy();\n    reject(new Error('Ollama request timeout'));\n  });\n  req.write(requestBody);\n  req.end();\n});"
+      }
+    },
+    {
+      "id": "4f1a6d55-131b-4449-a6c2-d7d2ea9f2c8a",
+      "name": "Code - Run R2 (Secu)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        18000,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[1];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nconst requestBody = JSON.stringify({\n  model: \"qwen3.5:35b-a3b\",\n  prompt: sys + \"\\n\\n\" + usr,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    num_predict: 4000\n  }\n});\n\n// Call Ollama\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/generate',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      'Content-Length': Buffer.byteLength(requestBody)\n    },\n    timeout: 300000\n  };\n\n  const req = http.request(options, (res) => {\n    let data = '';\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r2: response.response, r2name: 'Security Reviewer' } }]);\n      } catch(e) {\n        reject(new Error('Failed to parse Ollama response: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', (e) => { reject(e); });\n  req.on('timeout', () => {\n    req.destroy();\n    reject(new Error('Ollama request timeout'));\n  });\n  req.write(requestBody);\n  req.end();\n});"
+      }
+    },
+    {
+      "id": "60e1f0a1-c4d2-41c6-8f1e-741807c0f065",
+      "name": "Code - Run R3 (Exec)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        18900,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[2];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nconst requestBody = JSON.stringify({\n  model: \"qwen3.5:35b-a3b\",\n  prompt: sys + \"\\n\\n\" + usr,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    num_predict: 4000\n  }\n});\n\n// Call Ollama\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/generate',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      'Content-Length': Buffer.byteLength(requestBody)\n    },\n    timeout: 300000\n  };\n\n  const req = http.request(options, (res) => {\n    let data = '';\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r3: response.response, r3name: 'Executive Reviewer' } }]);\n      } catch(e) {\n        reject(new Error('Failed to parse Ollama response: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', (e) => { reject(e); });\n  req.on('timeout', () => {\n    req.destroy();\n    reject(new Error('Ollama request timeout'));\n  });\n  req.write(requestBody);\n  req.end();\n});"
+      }
+    },
+    {
+      "id": "0bc1ea08-978a-432a-a02a-dc78f0668c5a",
+      "name": "Code - Run R4 (User)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        19800,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[3];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nconst requestBody = JSON.stringify({\n  model: \"qwen3.5:35b-a3b\",\n  prompt: sys + \"\\n\\n\" + usr,\n  stream: false,\n  options: {\n    temperature: 0.7,\n    num_predict: 4000\n  }\n});\n\n// Call Ollama\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/generate',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      'Content-Length': Buffer.byteLength(requestBody)\n    },\n    timeout: 300000\n  };\n\n  const req = http.request(options, (res) => {\n    let data = '';\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r4: response.response, r4name: 'User Advocate' } }]);\n      } catch(e) {\n        reject(new Error('Failed to parse Ollama response: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', (e) => { reject(e); });\n  req.on('timeout', () => {\n    req.destroy();\n    reject(new Error('Ollama request timeout'));\n  });\n  req.write(requestBody);\n  req.end();\n});"
+      }
     }
   ],
   "connections": {
@@ -801,139 +669,7 @@
       "main": [
         [
           {
-            "node": "Code - Build R1 Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Build R1 Request": {
-      "main": [
-        [
-          {
-            "node": "HTTP - Run R1 (Tech)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP - Run R1 (Tech)": {
-      "main": [
-        [
-          {
-            "node": "Code - Save R1",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Save R1": {
-      "main": [
-        [
-          {
-            "node": "Code - Build R2 Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Build R2 Request": {
-      "main": [
-        [
-          {
-            "node": "HTTP - Run R2 (Sec)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP - Run R2 (Sec)": {
-      "main": [
-        [
-          {
-            "node": "Code - Save R2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Save R2": {
-      "main": [
-        [
-          {
-            "node": "Code - Build R3 Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Build R3 Request": {
-      "main": [
-        [
-          {
-            "node": "HTTP - Run R3 (Exec)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP - Run R3 (Exec)": {
-      "main": [
-        [
-          {
-            "node": "Code - Save R3",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Save R3": {
-      "main": [
-        [
-          {
-            "node": "Code - Build R4 Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Build R4 Request": {
-      "main": [
-        [
-          {
-            "node": "HTTP - Run R4 (User)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "HTTP - Run R4 (User)": {
-      "main": [
-        [
-          {
-            "node": "Code - Save R4",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Save R4": {
-      "main": [
-        [
-          {
-            "node": "HTTP - Warm Quality Model",
+            "node": "Code - Run R1 (Tech)",
             "type": "main",
             "index": 0
           }
@@ -1000,6 +736,50 @@
         [
           {
             "node": "Respond - Gate Recorded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Run R1 (Tech)": {
+      "main": [
+        [
+          {
+            "node": "Code - Run R2 (Secu)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Run R2 (Secu)": {
+      "main": [
+        [
+          {
+            "node": "Code - Run R3 (Exec)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Run R3 (Exec)": {
+      "main": [
+        [
+          {
+            "node": "Code - Run R4 (User)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Run R4 (User)": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Warm Quality Model",
             "type": "main",
             "index": 0
           }
