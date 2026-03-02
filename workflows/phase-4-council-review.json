@@ -86,10 +86,18 @@
         "method": "GET",
         "url": "http://host.docker.internal:11434/api/tags",
         "options": {
-          "timeout": 10000
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json",
+              "fullResponse": false
+            }
+          }
         }
       },
-      "continueOnFail": true
+      "continueOnFail": true,
+      "alwaysOutputData": true
     },
     {
       "id": "28478708-c332-41f6-aef2-e797fd433aca",
