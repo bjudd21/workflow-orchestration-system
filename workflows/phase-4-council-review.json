@@ -226,7 +226,7 @@
         6100
       ],
       "parameters": {
-        "filePath": "={{ $json.prdHandoff }}",
+        "filePath": "={{ $('Code - Validate Inputs').first().json.prdHandoff }}",
         "options": {}
       }
     },
@@ -702,7 +702,7 @@
         6600
       ],
       "parameters": {
-        "filePath": "={{ $json.councilHandoff }}",
+        "filePath": "={{ $('Code - Validate Inputs').first().json.councilHandoff }}",
         "options": {}
       }
     },
@@ -729,7 +729,7 @@
         6900
       ],
       "parameters": {
-        "filePath": "={{ $json.councilHandoff }}",
+        "filePath": "={{ $('Code - Validate Inputs').first().json.councilHandoff }}",
         "options": {}
       }
     },
