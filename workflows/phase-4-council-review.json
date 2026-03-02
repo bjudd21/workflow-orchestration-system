@@ -70,7 +70,7 @@
         6300
       ],
       "parameters": {
-        "jsCode": "const body = $input.first().json.body;\nconst project = (body.project || '').trim().toLowerCase().replace(/\\s+/g, '-');\nconst action = body.action || 'review';\nif (!project) throw new Error('project required');\nif (!['review', 'decide', 'gate'].includes(action)) throw new Error('invalid action');\nconst wp = `/home/node/workspace/${project}`;\nconst fs = require('fs');\nlet reviewNum = 1;\ntry {\n  if (fs.existsSync(`${wp}/handoffs`)) {\n    const files = fs.readdirSync(`${wp}/handoffs`).filter(f => f.startsWith('004-council'));\n    if (files.length > 0) {\n      const nums = files.map(f => { const m = f.match(/-r(\\d+)\\.md$/); return m ? parseInt(m[1]) : 1; });\n      reviewNum = Math.max(...nums);\n    }\n  }\n} catch(e) {}\nconst councilHandoff = reviewNum === 1 ? `${wp}/handoffs/004-council-review.md` : `${wp}/handoffs/004-council-review-r${reviewNum}.md`;\nreturn [{ json: { project, action, decision: body.decision || '', gateDecision: body.gate_decision || '', revisions: body.revisions || '', reviewNum, wp, prdHandoff: `${wp}/handoffs/003-prd-refined.md`, councilHandoff, prdDir: `${wp}/tasks`, promptsDir: '/home/node/prompts', skillsDir: '/home/node/skills' } }];"
+        "jsCode": "const body = $input.first().json.body;\nconst project = (body.project || '').trim().toLowerCase().replace(/\\s+/g, '-');\nconst action = body.action || 'review';\nif (!project) throw new Error('project required');\nif (!['review', 'decide', 'gate'].includes(action)) throw new Error('invalid action');\n\nconst wp = `/home/node/workspace/${project}`;\nconst reviewNum = 1;\nconst councilHandoff = `${wp}/handoffs/004-council-review.md`;\n\nreturn [{\n  json: {\n    project,\n    action,\n    decision: body.decision || '',\n    gateDecision: body.gate_decision || '',\n    revisions: body.revisions || '',\n    reviewNum,\n    wp,\n    prdHandoff: `${wp}/handoffs/003-prd-refined.md`,\n    councilHandoff,\n    prdDir: `${wp}/tasks`,\n    promptsDir: '/home/node/prompts',\n    skillsDir: '/home/node/skills'\n  }\n}];"
       }
     },
     {
@@ -214,15 +214,16 @@
     },
     {
       "id": "3ede513b-7ddb-44c5-9cdc-0b86f64635e4",
-      "name": "Code - Load PRD",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "name": "Read - PRD File",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
       "position": [
         15900,
         6100
       ],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet prd;\ntry { prd = fs.readFileSync(d.prdHandoff, 'utf8'); } catch(e) { throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`); }\nreturn [{ json: { ...d, prd } }];"
+        "filePath": "={{ $json.prdHandoff }}",
+        "options": {}
       }
     },
     {
@@ -305,7 +306,257 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nconst rs = [\n  { name: 'Technical Reviewer', prompt: 'prd-council/core/technical-reviewer.md', skills: ['council/technical-review.md'] },\n  { name: 'Security Reviewer', prompt: 'prd-council/core/security-reviewer.md', skills: ['council/security-review.md'] },\n  { name: 'Executive Reviewer', prompt: 'prd-council/core/executive-reviewer.md', skills: ['council/business-alignment.md'] },\n  { name: 'User Advocate', prompt: 'prd-council/core/user-advocate.md', skills: ['council/ux-review.md'] }\n];\nconst rdata = rs.map(r => {\n  const pr = fs.readFileSync(`${d.promptsDir}/${r.prompt}`, 'utf8');\n  const sk = r.skills.map(s => fs.readFileSync(`${d.skillsDir}/${s}`, 'utf8')).join('\\n\\n---\\n\\n');\n  return { name: r.name, prompt: pr, skills: sk };\n});\n\n// Also load chair\nconst chairPrompt = fs.readFileSync(`${d.promptsDir}/prd-council/core/council-chair.md`, 'utf8');\nconst chairSkills = fs.readFileSync(`${d.skillsDir}/council/council-synthesis.md`, 'utf8');\nconst chair = { prompt: chairPrompt, skills: chairSkills };\n\nreturn [{ json: { ...d, reviewers: rdata, chair } }];"
+        "jsCode": "const d = $input.first().json;\n\n// Reviewer definitions - files will be read separately\nconst reviewers = [\n  { name: 'Technical Reviewer', prompt: 'prd-council/core/technical-reviewer.md', skills: ['council/technical-review.md'] },\n  { name: 'Security Reviewer', prompt: 'prd-council/core/security-reviewer.md', skills: ['council/security-review.md'] },\n  { name: 'Executive Reviewer', prompt: 'prd-council/core/executive-reviewer.md', skills: ['council/business-alignment.md'] },\n  { name: 'User Advocate', prompt: 'prd-council/core/user-advocate.md', skills: ['council/ux-review.md'] }\n];\n\n// Build full paths and read inline (n8n will read files via Read nodes)\nconst items = reviewers.map((r, i) => ({\n  json: {\n    ...d,\n    reviewerIndex: i + 1,\n    reviewerName: r.name,\n    promptPath: `${d.promptsDir}/${r.prompt}`,\n    skillPaths: r.skills.map(s => `${d.skillsDir}/${s}`)\n  }\n}));\n\nreturn items;"
+      }
+    },
+    {
+      "id": "694ad70f-a4e6-42be-885f-5fce31df56cd",
+      "name": "Code - Build R1 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        17100,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[0];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, idx: 0, sys, usr } }];"
+      }
+    },
+    {
+      "id": "49a4f034-07bd-48bc-ae01-d59015d1c261",
+      "name": "HTTP - Run R1 (Tech)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        17400,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "options": {
+          "timeout": 300000
+        },
+        "rawBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+      }
+    },
+    {
+      "id": "22a08b13-8e57-4f21-a208-1098b59123f7",
+      "name": "Code - Save R1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        17700,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r1: d.response, r1name: 'Technical Reviewer' } }];"
+      }
+    },
+    {
+      "id": "85aa7798-3334-4367-84b9-aa7fd761ace6",
+      "name": "Code - Build R2 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        18000,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[1];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+      }
+    },
+    {
+      "id": "8860669d-d8db-4b3c-a73f-675ea9c16924",
+      "name": "HTTP - Run R2 (Sec)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        18300,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "options": {
+          "timeout": 300000
+        },
+        "rawBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+      }
+    },
+    {
+      "id": "981af7db-d178-46a0-8472-d62e21e7cd4a",
+      "name": "Code - Save R2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        18600,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r2: d.response, r2name: 'Security Reviewer' } }];"
+      }
+    },
+    {
+      "id": "2927ab4c-d5ae-4a86-bf9a-2c6f7e9b67d2",
+      "name": "Code - Build R3 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        18900,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[2];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+      }
+    },
+    {
+      "id": "be89ec3b-47d5-4a80-b399-145a26304dd8",
+      "name": "HTTP - Run R3 (Exec)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        19200,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "options": {
+          "timeout": 300000
+        },
+        "rawBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+      }
+    },
+    {
+      "id": "712654d5-f0d7-4d39-bbc1-288ee48c7d11",
+      "name": "Code - Save R3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        19500,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r3: d.response, r3name: 'Executive Reviewer' } }];"
+      }
+    },
+    {
+      "id": "9d1b997d-6d1f-4782-82a3-9bbe725f782b",
+      "name": "Code - Build R4 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        19800,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[3];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+      }
+    },
+    {
+      "id": "969bb818-a04f-4c46-be3d-2a30f0988bb5",
+      "name": "HTTP - Run R4 (User)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        20100,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "options": {
+          "timeout": 300000
+        },
+        "rawBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+      }
+    },
+    {
+      "id": "d1961ae8-7726-4d6a-aac5-76c3f58e6c07",
+      "name": "Code - Save R4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        20400,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r4: d.response, r4name: 'User Advocate' } }];"
+      }
+    },
+    {
+      "id": "fe99de91-8aac-4574-b787-a050129a87aa",
+      "name": "HTTP - Warm Quality Model",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        20700,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "options": {
+          "timeout": 60000
+        },
+        "rawBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen3.5:35b\",\n  \"prompt\": \"Respond with: ready\",\n  \"stream\": false,\n  \"options\": {\n    \"num_predict\": 10\n  }\n}"
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "350beae5-abbc-4bbe-b618-22993a15b350",
+      "name": "Code - Build Chair Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        21000,
+        6100
+      ],
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\n// Note: In production, prompt/skill files would be read separately\n// For MVP, using inline placeholders\nconst chairPromptPlaceholder = \\`You are the Council Chair. Synthesize all reviewer feedback into a unified assessment.\n\nOUTPUT FORMAT:\n## Consensus Points\n[List areas where reviewers agree]\n\n## Conflicts\n[List areas where reviewers disagree]\n\n## Overall Verdict\n[APPROVED / APPROVED WITH CONCERNS / REVISE AND RESUBMIT]\n\n## Required Revisions\n[Numbered list if verdict is not APPROVED]\\`;\n\nconst sys = chairPromptPlaceholder;\nconst allRev = \\`## Reviewer Outputs\n\n### \\${d.r1name}\n\n\\${d.r1}\n\n---\n\n### \\${d.r2name}\n\n\\${d.r2}\n\n---\n\n### \\${d.r3name}\n\n\\${d.r3}\n\n---\n\n### \\${d.r4name}\n\n\\${d.r4}\n\n---\\`;\n\nconst usr = \\`Synthesize these 4 reviews into a unified council assessment:\\n\\n\\${allRev}\\`;\n\nreturn [{ json: { ...d, sys, usr } }];"
+      }
+    },
+    {
+      "id": "f5bfd9bb-0e0c-499d-842b-a8a00d8bc4b6",
+      "name": "HTTP - Run Chair",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        21300,
+        6100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "options": {
+          "timeout": 300000
+        },
+        "rawBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen3.5:35b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 6000\n  }\n}"
       }
     },
     {
@@ -318,7 +569,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\n\nreturn [{\n  json: {\n    reviewText: d.reviewText,\n    verdict: d.verdict,\n    reviewNum: d.reviewNum,\n    project: d.project\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst chair = d.response;\nconst vm = chair.match(/Overall Verdict:\\s*(APPROVED|APPROVED WITH CONCERNS|REVISE AND RESUBMIT)/i);\nconst verdict = vm ? vm[1] : 'APPROVED WITH CONCERNS';\nconst reviewText = `---\\nphase: council-review\\nproject: ${d.project}\\nreview_number: ${d.reviewNum}\\ndate: ${new Date().toISOString().split('T')[0]}\\nprd_version_reviewed: ${d.prdV}\\nreviewers:\\n  - technical-reviewer\\n  - security-reviewer\\n  - executive-reviewer\\n  - user-advocate\\n  - council-chair\\noverall_verdict: ${verdict}\\nstatus: PENDING\\n---\\n\\n# Council Review \u2014 ${d.project}\\n\\n## Reviewer Outputs\\n\\n### Technical Reviewer\\n\\n${d.r1}\\n\\n---\\n\\n### Security Reviewer\\n\\n${d.r2}\\n\\n---\\n\\n### Executive Reviewer\\n\\n${d.r3}\\n\\n---\\n\\n### User Advocate\\n\\n${d.r4}\\n\\n---\\n\\n## Council Chair Synthesis\\n\\n${chair}\\n\\n---\\n\\n## User Decisions\\n\\n**Status**: PENDING\\n\\nUser review in progress.\\n\\n---\\n\\n## PRD Revision Log\\n\\n**PRD version before council**: ${d.prdV}\\n**PRD version after revisions**: (pending)\\n\\n### Changes Made\\n\\n(pending)\\n\\n---\\n\\n## Re-Review Status\\n\\n**Gate Decision**: (pending)\\n**Decision Date**: (pending)\\n**Rationale**: (pending)\\n`;\nreturn [{ json: { ...d, reviewText, verdict } }];"
       }
     },
     {
@@ -332,7 +583,7 @@
       ],
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={{ JSON.stringify({ success: true, review_text: $json.reviewText, verdict: $json.verdict, review_number: $json.reviewNum, project: $json.project }) }}",
+        "responseBody": "={\"success\": true, \"review_text\": {{ $json.reviewText }}, \"verdict\": {{ $json.verdict }}, \"review_number\": {{ $json.reviewNum }}, \"project\": {{ $json.project }} }",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -355,7 +606,7 @@
         6600
       ],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet councilText;\ntry { councilText = fs.readFileSync(d.councilHandoff, 'utf8'); } catch(e) { throw new Error(`Council review not found at ${d.councilHandoff}. Run review first.`); }\nconst decision = d.decision;\nif (!decision) throw new Error('decision required (ACCEPTED or REJECTED)');\nconst revisions = d.revisions.trim();\nconst prdMatch = councilText.match(/prd_version_reviewed:\\s*(v\\d+)/);\nconst oldVer = prdMatch ? prdMatch[1] : 'v1';\nconst oldVerNum = parseInt(oldVer.substring(1));\nconst newVerNum = decision === 'ACCEPTED' && revisions ? oldVerNum + 1 : oldVerNum;\nconst newVer = `v${newVerNum}`;\nconst prdPath = `${d.prdDir}/prd-${d.project}-${oldVer}.md`;\nlet prd = '';\nif (decision === 'ACCEPTED' && revisions) {\n  prd = fs.readFileSync(prdPath, 'utf8');\n  prd = prd.replace(/version:\\s*v\\d+/, `version: ${newVer}`);\n  const newPrdPath = `${d.prdDir}/prd-${d.project}-${newVer}.md`;\n  fs.writeFileSync(newPrdPath, prd, 'utf8');\n}\nconst today = new Date().toISOString().split('T')[0];\nconst revisionsApplied = revisions ? revisions.split('\\n').filter(l => l.trim()).map(l => `- ${l.trim()}`).join('\\n') : 'No PRD changes made. Council findings acknowledged; PRD proceeds as-is.';\ncouncilText = councilText.replace(/status:\\s*PENDING/, `status: ${decision}`);\nconst userDecSection = `## User Decisions\\n\\n**Review Date**: ${today}\\n**Decision**: ${decision}\\n\\n### Accepted Recommendations\\n\\n${decision === 'ACCEPTED' && revisions ? revisionsApplied : 'No recommendations accepted. User proceeding without council revisions.'}\\n\\n### Rejected Recommendations\\n\\n${decision === 'REJECTED' ? 'All recommendations rejected. PRD proceeds unchanged.' : 'No recommendations rejected.'}\\n\\n### Notes\\n\\nUser ${decision === 'ACCEPTED' ? 'accepted' : 'rejected'} council verdict.`;\nconst revLogSection = `## PRD Revision Log\\n\\n**PRD version before council**: ${oldVer}\\n**PRD version after revisions**: ${newVer}\\n\\n### Changes Made\\n\\n${revisionsApplied}`;\ncouncilText = councilText.replace(/## User Decisions[\\s\\S]*?(?=\\n## PRD Revision Log|$)/, userDecSection + '\\n\\n---\\n\\n');\ncouncilText = councilText.replace(/## PRD Revision Log[\\s\\S]*?(?=\\n## Re-Review Status|$)/, revLogSection + '\\n\\n---\\n\\n');\nfs.writeFileSync(d.councilHandoff, councilText, 'utf8');\nreturn [{ json: { ...d, new_prd_version: newVer, decision } }];"
+        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst decision = d.decision;\nif (!decision) throw new Error('decision required (ACCEPTED or REJECTED)');\n\nconst revisions = d.revisions.trim();\nconst prdMatch = councilText.match(/prd_version_reviewed:\\s*(v\\d+)/);\nconst oldVer = prdMatch ? prdMatch[1] : 'v1';\nconst newVerNum = parseInt(oldVer.substring(1)) + 1;\nconst newVer = `v${newVerNum}`;\n\n// Update council handoff with decision\nconst today = new Date().toISOString().split('T')[0];\nconst decisionBlock = `\\n\\n---\\n## User Decision (${today})\\n\\n**Status**: ${decision}\\n${revisions ? `\\n**Revisions to Apply**:\\n${revisions}\\n` : ''}\\n---\\n`;\nconst updatedCouncil = councilText + decisionBlock;\n\nreturn [{\n  json: {\n    ...d,\n    decision,\n    oldPrdVersion: oldVer,\n    newPrdVersion: decision === 'ACCEPTED' ? newVer : oldVer,\n    councilHandoffContent: updatedCouncil,\n    message: `Decision recorded: ${decision}${decision === 'ACCEPTED' ? ` (PRD ${oldVer} \u2192 ${newVer})` : ''}`\n  }\n}];"
       }
     },
     {
@@ -392,7 +643,7 @@
         6900
       ],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet councilText;\ntry { councilText = fs.readFileSync(d.councilHandoff, 'utf8'); } catch(e) { throw new Error(`Council review not found. Run review first.`); }\nconst gate = d.gateDecision;\nif (!gate) throw new Error('gate_decision required (PROCEED or RECONVENE)');\nconst today = new Date().toISOString().split('T')[0];\nconst rationale = gate === 'PROCEED' ? 'User approved proceeding to next phase.' : 'User requested council re-review with revised PRD.';\nconst nextReviewFile = gate === 'RECONVENE' ? `004-council-review-r${d.reviewNum + 1}.md` : '';\nconst gateSection = `## Re-Review Status\\n\\n**Gate Decision**: ${gate}\\n**Decision Date**: ${today}\\n**Rationale**: ${rationale}\\n${gate === 'RECONVENE' ? `\\n**Next review scope**: Delta review of revised sections\\n**Next review file**: workspace/${d.project}/handoffs/${nextReviewFile}` : ''}`;\ncouncilText = councilText.replace(/## Re-Review Status[\\s\\S]*$/, gateSection);\nfs.writeFileSync(d.councilHandoff, councilText, 'utf8');\nif (gate === 'RECONVENE') {\n  const nextPath = `${d.wp}/handoffs/${nextReviewFile}`;\n  const shell = `---\\nphase: council-review\\nproject: ${d.project}\\nreview_number: ${d.reviewNum + 1}\\ndate: (pending)\\nprd_version_reviewed: (pending)\\nstatus: PENDING\\n---\\n\\n# Council Review r${d.reviewNum + 1} \u2014 ${d.project}\\n\\n(Review will be populated when started)\\n`;\n  fs.writeFileSync(nextPath, shell, 'utf8');\n}\nreturn [{ json: { ...d, gate_decision: gate, next_review_file: nextReviewFile || 'N/A' } }];"
+        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst gate = d.gateDecision;\nif (!gate) throw new Error('gate_decision required (PROCEED or RECONVENE)');\n\nconst today = new Date().toISOString().split('T')[0];\nconst rationale = gate === 'PROCEED' ?\n  'User approved proceeding to next phase.' :\n  'User requested council reconvene for re-review.';\n\nconst gateBlock = `\\n\\n---\\n## Re-Review Gate (${today})\\n\\n**Gate Decision**: ${gate}\\n**Rationale**: ${rationale}\\n---\\n`;\nconst updatedCouncil = councilText + gateBlock;\n\nconst nextReviewFile = gate === 'RECONVENE' ?\n  `${d.wp}/handoffs/004-council-review-r${d.reviewNum + 1}.md` :\n  '';\n\nreturn [{\n  json: {\n    ...d,\n    gateDecision: gate,\n    councilHandoffContent: updatedCouncil,\n    nextReviewFile,\n    message: `Gate decision: ${gate}${gate === 'RECONVENE' ? ` (next: r${d.reviewNum + 1})` : ''}`\n  }\n}];"
       }
     },
     {
@@ -420,68 +671,70 @@
       }
     },
     {
-      "id": "4b2d2110-ea48-4c3c-836d-1b003a169904",
-      "name": "Code - Run R1",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "65c9219a-0c63-43f2-84ce-015d9756d77e",
+      "name": "Read - Council for Decision",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
       "position": [
-        17100,
-        6100
+        15750,
+        6600
       ],
       "parameters": {
-        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[0];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nconst requestBody = JSON.stringify({\n  model: 'qwen3.5:35b-a3b',\n  messages: [\n    { role: 'system', content: sys },\n    { role: 'user', content: usr }\n  ],\n  stream: false,\n  think: false\n});\n\n// Call Ollama /api/chat\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/chat',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    timeout: 300000\n  };\n\n  let data = '';\n  const req = http.request(options, (res) => {\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r1: response.message.content, r1name: 'Technical Reviewer' } }]);\n      } catch(e) {\n        reject(new Error('Ollama response parse error: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', reject);\n  req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });\n  req.write(requestBody);\n  req.end();\n});"
+        "filePath": "={{ $json.councilHandoff }}",
+        "options": {}
       }
     },
     {
-      "id": "3c1fecbf-594b-4aff-8c18-825bcdb4bf83",
-      "name": "Code - Run R2",
+      "id": "32b1677f-c41b-4220-a49b-c1cfd64c1a48",
+      "name": "Code - Process Council for Decision",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        18300,
-        6100
+        15850,
+        6600
       ],
       "parameters": {
-        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[1];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nconst requestBody = JSON.stringify({\n  model: 'qwen3.5:35b-a3b',\n  messages: [\n    { role: 'system', content: sys },\n    { role: 'user', content: usr }\n  ],\n  stream: false,\n  think: false\n});\n\n// Call Ollama /api/chat\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/chat',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    timeout: 300000\n  };\n\n  let data = '';\n  const req = http.request(options, (res) => {\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r2: response.message.content, r2name: 'Security Reviewer' } }]);\n      } catch(e) {\n        reject(new Error('Ollama response parse error: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', reject);\n  req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });\n  req.write(requestBody);\n  req.end();\n});"
+        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first();\nlet councilFileContent = '';\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  councilFileContent = buffer.toString('utf8');\n}\nreturn [{ json: { ...d, councilFileContent } }];"
       }
     },
     {
-      "id": "e696506e-6d8a-496d-85d7-e0d711a1154b",
-      "name": "Code - Run R3",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "1a479721-3e4a-42dc-8b6b-4bf8744043f6",
+      "name": "Read - Council for Gate",
+      "type": "n8n-nodes-base.readBinaryFile",
+      "typeVersion": 1,
       "position": [
-        19500,
-        6100
+        15750,
+        6900
       ],
       "parameters": {
-        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[2];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nconst requestBody = JSON.stringify({\n  model: 'qwen3.5:35b-a3b',\n  messages: [\n    { role: 'system', content: sys },\n    { role: 'user', content: usr }\n  ],\n  stream: false,\n  think: false\n});\n\n// Call Ollama /api/chat\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/chat',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    timeout: 300000\n  };\n\n  let data = '';\n  const req = http.request(options, (res) => {\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r3: response.message.content, r3name: 'Executive Reviewer' } }]);\n      } catch(e) {\n        reject(new Error('Ollama response parse error: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', reject);\n  req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });\n  req.write(requestBody);\n  req.end();\n});"
+        "filePath": "={{ $json.councilHandoff }}",
+        "options": {}
       }
     },
     {
-      "id": "c97dd14b-4956-4bb5-a3d1-215e3cc9d3f9",
-      "name": "Code - Run R4",
+      "id": "ceb339fa-4c5e-406d-98be-189f75b43520",
+      "name": "Code - Process Council for Gate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        20700,
-        6100
+        15850,
+        6900
       ],
       "parameters": {
-        "jsCode": "const http = require('http');\nconst d = $input.first().json;\nconst r = d.reviewers[3];\n\n// Build request\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\n\nconst requestBody = JSON.stringify({\n  model: 'qwen3.5:35b-a3b',\n  messages: [\n    { role: 'system', content: sys },\n    { role: 'user', content: usr }\n  ],\n  stream: false,\n  think: false\n});\n\n// Call Ollama /api/chat\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/chat',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    timeout: 300000\n  };\n\n  let data = '';\n  const req = http.request(options, (res) => {\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        resolve([{ json: { ...d, r4: response.message.content, r4name: 'User Advocate' } }]);\n      } catch(e) {\n        reject(new Error('Ollama response parse error: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', reject);\n  req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });\n  req.write(requestBody);\n  req.end();\n});"
+        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first();\nlet councilFileContent = '';\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  councilFileContent = buffer.toString('utf8');\n}\nreturn [{ json: { ...d, councilFileContent } }];"
       }
     },
     {
-      "id": "chair-merged-node-id",
-      "name": "Code - Run Chair",
+      "id": "d1edbb50-0737-4738-90c2-d9192d26bd76",
+      "name": "Code - Process PRD",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        21000,
+        16100,
         6100
       ],
       "parameters": {
-        "jsCode": "const http = require('http');\nconst d = $input.first().json;\n\n// Build request\nconst sys = `${d.chair.prompt}\\n\\n# Skills\\n\\n${d.chair.skills}`;\nconst allRev = `## Reviewer Outputs\\n\\n### ${d.r1name}\\n\\n${d.r1}\\n\\n---\\n\\n### ${d.r2name}\\n\\n${d.r2}\\n\\n---\\n\\n### ${d.r3name}\\n\\n${d.r3}\\n\\n---\\n\\n### ${d.r4name}\\n\\n${d.r4}\\n\\n---`;\nconst prdV = d.prd.match(/version:\\s*(v\\d+)/i)?.[1] || 'v1';\nconst usr = `You are the Council Chair. Synthesize these reviews.\\n\\nPRD VERSION: ${prdV}\\n\\n${allRev}\\n\\nProvide synthesis per system prompt format.`;\n\nconst requestBody = JSON.stringify({\n  model: 'qwen3.5:35b',\n  messages: [\n    { role: 'system', content: sys },\n    { role: 'user', content: usr }\n  ],\n  stream: false,\n  think: false\n});\n\n// Call Ollama /api/chat\nreturn new Promise((resolve, reject) => {\n  const options = {\n    hostname: 'host.docker.internal',\n    port: 11434,\n    path: '/api/chat',\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    timeout: 300000\n  };\n\n  let data = '';\n  const req = http.request(options, (res) => {\n    res.on('data', (chunk) => { data += chunk; });\n    res.on('end', () => {\n      try {\n        const response = JSON.parse(data);\n        const chairReview = response.message.content;\n        \n        // Extract verdict\n        let verdict = 'NEEDS_REVISION';\n        if (/verdict:\\s*approved/i.test(chairReview) || /\\bAPPROVED\\b/i.test(chairReview)) {\n          verdict = 'APPROVED';\n        }\n        \n        const reviewText = `# Council Review \u2014 ${d.project}\\n\\n${chairReview}`;\n        \n        resolve([{ json: { ...d, chairReview, reviewText, verdict, reviewNum: 1 } }]);\n      } catch(e) {\n        reject(new Error('Ollama response parse error: ' + e.message));\n      }\n    });\n  });\n\n  req.on('error', reject);\n  req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });\n  req.write(requestBody);\n  req.end();\n});"
+        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first();\nlet prd;\nif (item.binary && item.binary.data) {\n  const buffer = Buffer.from(item.binary.data.data);\n  prd = buffer.toString('utf8');\n} else {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd } }];"
       }
     }
   ],
@@ -552,7 +805,7 @@
       "main": [
         [
           {
-            "node": "Code - Load PRD",
+            "node": "Read - PRD File",
             "type": "main",
             "index": 0
           }
@@ -570,25 +823,14 @@
       "main": [
         [
           {
-            "node": "Code - Handle User Decision",
+            "node": "Read - Council for Decision",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Code - Handle Gate Decision",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Load PRD": {
-      "main": [
-        [
-          {
-            "node": "Code - Validate PRD Contract",
+            "node": "Read - Council for Gate",
             "type": "main",
             "index": 0
           }
@@ -628,7 +870,172 @@
       "main": [
         [
           {
-            "node": "Code - Run R1",
+            "node": "Code - Build R1 Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build R1 Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Run R1 (Tech)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Run R1 (Tech)": {
+      "main": [
+        [
+          {
+            "node": "Code - Save R1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Save R1": {
+      "main": [
+        [
+          {
+            "node": "Code - Build R2 Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build R2 Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Run R2 (Sec)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Run R2 (Sec)": {
+      "main": [
+        [
+          {
+            "node": "Code - Save R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Save R2": {
+      "main": [
+        [
+          {
+            "node": "Code - Build R3 Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build R3 Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Run R3 (Exec)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Run R3 (Exec)": {
+      "main": [
+        [
+          {
+            "node": "Code - Save R3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Save R3": {
+      "main": [
+        [
+          {
+            "node": "Code - Build R4 Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build R4 Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Run R4 (User)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Run R4 (User)": {
+      "main": [
+        [
+          {
+            "node": "Code - Save R4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Save R4": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Warm Quality Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Warm Quality Model": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Chair Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build Chair Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Run Chair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Run Chair": {
+      "main": [
+        [
+          {
+            "node": "Code - Assemble Output",
             "type": "main",
             "index": 0
           }
@@ -668,55 +1075,66 @@
         ]
       ]
     },
-    "Code - Run R1": {
+    "Read - Council for Decision": {
       "main": [
         [
           {
-            "node": "Code - Run R2",
+            "node": "Code - Process Council for Decision",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code - Run R2": {
+    "Code - Process Council for Decision": {
       "main": [
         [
           {
-            "node": "Code - Run R3",
+            "node": "Code - Handle User Decision",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code - Run R3": {
+    "Read - Council for Gate": {
       "main": [
         [
           {
-            "node": "Code - Run R4",
+            "node": "Code - Process Council for Gate",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code - Run R4": {
+    "Code - Process Council for Gate": {
       "main": [
         [
           {
-            "node": "Code - Run Chair",
+            "node": "Code - Handle Gate Decision",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code - Run Chair": {
+    "Read - PRD File": {
       "main": [
         [
           {
-            "node": "Code - Assemble Output",
+            "node": "Code - Process PRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Process PRD": {
+      "main": [
+        [
+          {
+            "node": "Code - Validate PRD Contract",
             "type": "main",
             "index": 0
           }
