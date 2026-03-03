@@ -464,6 +464,36 @@
         19304,
         5984
       ]
+    },
+    {
+      "id": "0c54c069-6f13-427b-a9cd-6c06edc8beb4",
+      "name": "HTTP Request - Trigger Phase 3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        19704,
+        5984
+      ],
+      "parameters": {
+        "url": "http://localhost:5678/webhook/prd-synthesis-action",
+        "method": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "project",
+              "value": "={{ $json.project }}"
+            },
+            {
+              "name": "action",
+              "value": "synthesize"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 180000
+        }
+      }
     }
   ],
   "connections": {
@@ -662,6 +692,17 @@
         [
           {
             "node": "HTTP Request - Ollama Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Binary File - Handoff": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Trigger Phase 3",
             "type": "main",
             "index": 0
           }

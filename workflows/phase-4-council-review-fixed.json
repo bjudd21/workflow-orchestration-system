@@ -598,7 +598,7 @@
       ],
       "parameters": {
         "respondWith": "text",
-        "responseBody": "={{ JSON.stringify({ success: true, review_text: $json.reviewText, verdict: $json.verdict, review_number: $json.reviewNum, project: $json.project }) }}",
+        "responseBody": "={{ JSON.stringify({\n  success: true,\n  status: \"complete\",\n  verdict: $json.verdict,\n  review_number: $json.reviewNum,\n  project: $json.project,\n  review_text: $json.reviewText,\n  artifacts: {\n    interview: `workspace/${$json.project}/handoffs/002-prd-interview.md`,\n    prd: `workspace/${$json.project}/handoffs/003-prd-refined.md`,\n    council_review: `workspace/${$json.project}/handoffs/004-council-review.md`\n  },\n  note: \"Artifacts are available in the workspace directory\"\n}) }}",
         "options": {
           "responseHeaders": {
             "entries": [

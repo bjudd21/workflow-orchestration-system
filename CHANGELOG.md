@@ -6,10 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-### In Progress
-- Phase 4: Council Review workflow
+---
+
+## [0.4.0] — 2026-03-03
+
+### Added
+- **Auto-chaining feature**: Phase 2 → 3 → 4 pipeline now executes automatically without manual intervention
+  - Phase 2 (Interview) completion auto-triggers Phase 3 (PRD Synthesis)
+  - Phase 3 completion auto-triggers Phase 4 (Council Review)
+  - New HTTP Request nodes for inter-workflow triggering
+  - Phase 4 response now includes artifact paths for all handoff files
+  - Full pipeline completes in ~9-10 minutes from interview start
+- New documentation: `docs/auto-chaining.md` with implementation details, troubleshooting, and testing guide
+- New script: `scripts/add-auto-chaining.py` to programmatically modify workflow JSON files
+- New test script: `scripts/test-auto-chaining.sh` for end-to-end validation
 
 ### Fixed
+- **Issue #72**: Phase 3 now writes PRD to both `tasks/prd-{project}-v{N}.md` AND `handoffs/003-prd-refined.md`
+  - Added `Code - Write Handoff Copy` node in Phase 3 workflow
+  - Ensures Phase 4 can always find the PRD handoff file
+  - Maintains backward compatibility with existing `tasks/` directory structure
+
+### Changed
+- Phase 2 workflow: Added `HTTP Request - Trigger Phase 3` node after handoff write
+- Phase 3 workflow: Added handoff copy step before triggering Phase 4
+- Phase 4 workflow: Enhanced final response to include artifact information
+  - Response now contains `artifacts` object with paths to interview, PRD, and council review handoffs
+  - Added `note` field explaining where to find artifacts
+
+### In Progress
+- Phase 4: Council Review workflow (core functionality complete, auto-chaining integrated)
+
+### Previous Fixes (from 0.3.x development)
 - Switched Council Chair quality model from `qwen3.5:35b` (~23GB VRAM) to `qwen3:30b-a3b` (~18GB VRAM) — prevents Ollama crash during Chair synthesis step. Both models now fit in 24GB GPU with room for context. Chair prompt updated to honor FR-4.5 spec (Consensus Points, Conflicts, Overall Verdict, Required Revisions)
 
 ---
