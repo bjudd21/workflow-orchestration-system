@@ -904,7 +904,7 @@
     },
     {
       "id": "705eaf5a-7e72-4526-8965-38d2ef2f39bf",
-      "name": "Code - Prepare Handoff Data",
+      "name": "Code - Write Handoff File",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -912,25 +912,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "\nconst assembleData = $input.first().json;\n\n// Prepare file write\nconst handoffPath = `/home/node/workspace/${assembleData.project}/handoffs/004-council-review.md`;\n\nreturn [{\n  json: assembleData,\n  binary: {\n    data: {\n      data: assembleData.review_text,\n      mimeType: 'text/markdown',\n      fileName: handoffPath\n    }\n  }\n}];\n"
-      }
-    },
-    {
-      "id": "42acf231-5db5-426f-9e41-980d4e2e5dda",
-      "name": "Write Binary File - Council Review",
-      "type": "n8n-nodes-base.readWriteFile",
-      "typeVersion": 1,
-      "position": [
-        22200,
-        6100
-      ],
-      "parameters": {
-        "operation": "write",
-        "fileName": "={{ $input.first().json.project ? `/home/node/workspace/${$input.first().json.project}/handoffs/004-council-review.md` : '/tmp/council-review.md' }}",
-        "dataPropertyName": "data",
-        "options": {
-          "encoding": "utf8"
-        }
+        "jsCode": "const fs = require('fs');\nconst path = require('path');\nconst assembleData = $input.first().json;\n\n// Build handoff file path\nconst handoffPath = `/home/node/workspace/${assembleData.project}/handoffs/004-council-review.md`;\n\n// Ensure directory exists\nconst dir = path.dirname(handoffPath);\nfs.mkdirSync(dir, { recursive: true });\n\n// Write handoff file\nfs.writeFileSync(handoffPath, assembleData.reviewText, 'utf8');\n\nreturn [{ \n  json: { \n    ...assembleData, \n    handoff_written: handoffPath \n  } \n}];"
       }
     }
   ],
@@ -1242,7 +1224,7 @@
       "main": [
         [
           {
-            "node": "Code - Prepare Handoff Data",
+            "node": "Code - Write Handoff File",
             "type": "main",
             "index": 0
           }
@@ -1454,25 +1436,14 @@
       "main": [
         [
           {
-            "node": "Write Binary File - Council Review",
+            "node": "Respond - Review Done",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code - Prepare Handoff Data": {
-      "main": [
-        [
-          {
-            "node": "Write Binary File - Council Review",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write Binary File - Council Review": {
+    "Code - Write Handoff File": {
       "main": [
         [
           {
