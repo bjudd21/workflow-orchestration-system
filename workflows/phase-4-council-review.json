@@ -284,8 +284,8 @@
         6300
       ],
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={ \"error\": \"PRD validation failed\", \"errors\": $json.errors }",
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({ error: \"PRD validation failed\", errors: $json.errors }) }}",
         "options": {
           "responseCode": 400,
           "responseHeaders": {
@@ -338,12 +338,12 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
         "options": {
           "timeout": 300000
         },
-        "specifyBody": "json",
-        "jsonBody": "={ \"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000} }"
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}"
       },
       "retryOnFail": true,
       "maxTries": 3,
@@ -388,12 +388,12 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
         "options": {
           "timeout": 300000
         },
-        "specifyBody": "json",
-        "jsonBody": "={ \"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000} }"
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}"
       },
       "retryOnFail": true,
       "maxTries": 3,
@@ -438,12 +438,12 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
         "options": {
           "timeout": 300000
         },
-        "specifyBody": "json",
-        "jsonBody": "={ \"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000} }"
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}"
       },
       "retryOnFail": true,
       "maxTries": 3,
@@ -488,12 +488,12 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
         "options": {
           "timeout": 300000
         },
-        "specifyBody": "json",
-        "jsonBody": "={ \"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000} }"
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}"
       },
       "retryOnFail": true,
       "maxTries": 3,
@@ -525,12 +525,12 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
         "options": {
           "timeout": 60000
         },
-        "specifyBody": "json",
-        "jsonBody": "={ \"model\": \"qwen3.5:35b\", \"prompt\": \"Respond with: ready\", \"stream\": false, \"options\": {\"num_predict\": 10} }"
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b\", prompt: \"Respond with: ready\", stream: false, options: { num_predict: 10 } }) }}"
       },
       "continueOnFail": true,
       "retryOnFail": true,
@@ -563,12 +563,12 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
         "options": {
           "timeout": 300000
         },
-        "specifyBody": "json",
-        "jsonBody": "={ \"model\": \"qwen3.5:35b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000} }"
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}"
       },
       "retryOnFail": true,
       "maxTries": 3,
@@ -597,8 +597,8 @@
         6100
       ],
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={ \"success\": true, \"review_text\": $json.reviewText, \"verdict\": $json.verdict, \"review_number\": $json.reviewNum, \"project\": $json.project }",
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({ success: true, review_text: $json.reviewText, verdict: $json.verdict, review_number: $json.reviewNum, project: $json.project }) }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -634,8 +634,8 @@
         6600
       ],
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={ \"success\": true, \"decision\": $json.decision, \"new_prd_version\": $json.new_prd_version, \"project\": $json.project }",
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({ success: true, decision: $json.decision, new_prd_version: $json.new_prd_version, project: $json.project }) }}",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -671,8 +671,8 @@
         6900
       ],
       "parameters": {
-        "respondWith": "json",
-        "responseBody": "={ \"success\": true, \"gate_decision\": $json.gate_decision, \"next_review_file\": $json.next_review_file, \"project\": $json.project }",
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({ success: true, gate_decision: $json.gate_decision, next_review_file: $json.next_review_file, project: $json.project }) }}",
         "options": {
           "responseHeaders": {
             "entries": [
