@@ -285,7 +285,7 @@
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ {\"error\": \"PRD validation failed\", \"errors\": $json.errors} }}",
+        "responseBody": "={ \"error\": \"PRD validation failed\", \"errors\": $json.errors }",
         "options": {
           "responseCode": 400,
           "responseHeaders": {
@@ -598,7 +598,7 @@
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ {\"success\": true, \"review_text\": $json.reviewText, \"verdict\": $json.verdict, \"review_number\": $json.reviewNum, \"project\": $json.project} }}",
+        "responseBody": "={ \"success\": true, \"review_text\": $json.reviewText, \"verdict\": $json.verdict, \"review_number\": $json.reviewNum, \"project\": $json.project }",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -635,7 +635,7 @@
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ {\"success\": true, \"decision\": $json.decision, \"new_prd_version\": $json.new_prd_version, \"project\": $json.project} }}",
+        "responseBody": "={ \"success\": true, \"decision\": $json.decision, \"new_prd_version\": $json.new_prd_version, \"project\": $json.project }",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -672,7 +672,7 @@
       ],
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ {\"success\": true, \"gate_decision\": $json.gate_decision, \"next_review_file\": $json.next_review_file, \"project\": $json.project} }}",
+        "responseBody": "={ \"success\": true, \"gate_decision\": $json.gate_decision, \"next_review_file\": $json.next_review_file, \"project\": $json.project }",
         "options": {
           "responseHeaders": {
             "entries": [
