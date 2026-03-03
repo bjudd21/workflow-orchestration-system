@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-03-01T01:14:39.438Z",
+  "updatedAt": "2026-03-03T16:54:53.260596Z",
   "createdAt": "2026-02-28T15:51:29.610Z",
   "id": "bAH4CRlxwlupkanC",
   "name": "Phase 2 \u2014 PRD Interview",
@@ -148,23 +148,10 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\n\nconst inputs = $('Code - Validate Inputs').first().json;\nconst workspacePath = inputs.workspace_path;\nconst handoffDir = path.join(workspacePath, 'handoffs');\n\nfs.mkdirSync(handoffDir, { recursive: true });\n\nreturn [{ json: { created: handoffDir } }];\n"
-      },
-      "id": "f0fd4802-83f5-4d9f-815d-6960aedd6389",
-      "name": "Execute Command - Create Dirs",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        15792,
-        5984
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "\nconst fs = require('fs');\n\nconst statePath = $('Code - Validate Inputs').first().json.state_path;\n\nlet stateJson = '{\"messages\":[],\"turn\":0}';\ntry {\n  if (fs.existsSync(statePath)) {\n    stateJson = fs.readFileSync(statePath, 'utf8');\n  }\n} catch(e) {\n  // return empty state if any error\n}\n\nreturn [{ json: { stdout: stateJson } }];\n"
+        "jsCode": "\nconst input = $input.first();\n\n// Check if binary data exists (file was read successfully)\nif (input.binary && input.binary.data) {\n  const buffer = Buffer.from(input.binary.data.data, 'base64');\n  const stateJson = buffer.toString('utf8');\n  return [{ json: { stdout: stateJson } }];\n} else {\n  // File doesn't exist - return empty state\n  const stateJson = '{\"messages\":[],\"turn\":0}';\n  return [{ json: { stdout: stateJson } }];\n}\n"
       },
       "id": "df3a7355-df68-493f-9949-991b0160157d",
-      "name": "Execute Command - Read State",
+      "name": "Code - Parse State",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -174,10 +161,10 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst fs = require('fs');\n\nfunction readFile(p) {\n  try { return fs.readFileSync(p, 'utf8'); } catch(e) { return ''; }\n}\n\nconst promptPath = '/home/node/prompts/prd-development/prd-interviewer.md';\nconst skill1Path = '/home/node/skills/prd/stakeholder-interview.md';\nconst skill2Path = '/home/node/skills/prd/requirements-engineering.md';\n\nconst prompt = readFile(promptPath);\nconst skill1 = readFile(skill1Path);\nconst skill2 = readFile(skill2Path);\n\nconst combined = [prompt, skill1, skill2].filter(Boolean).join('\\n\\n---\\n\\n');\n\nreturn [{ json: { stdout: combined } }];\n"
+        "jsCode": "\nconst prompt = Buffer.from($('Read Binary File - Prompt').first().binary.data.data, 'base64').toString('utf8');\nconst skill1 = Buffer.from($('Read Binary File - Skill 1').first().binary.data.data, 'base64').toString('utf8');\nconst skill2 = Buffer.from($('Read Binary File - Skill 2').first().binary.data.data, 'base64').toString('utf8');\n\nconst combined = [prompt, skill1, skill2].filter(Boolean).join('\\n\\n---\\n\\n');\nreturn [{ json: { stdout: combined } }];\n"
       },
       "id": "f022ddbc-3824-4460-97da-2fa3468debae",
-      "name": "Execute Command - Read Prompt",
+      "name": "Code - Combine Prompts",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -237,10 +224,10 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst fs = require('fs');\n\nconst processData = $('Code - Process Response').first().json;\nconst stateJson = Buffer.from(processData.state_b64, 'base64').toString('utf8');\n\nfs.writeFileSync(processData.state_path, stateJson, 'utf8');\n\nreturn [{ json: { written: processData.state_path } }];\n"
+        "jsCode": "\nconst processData = $('Code - Process Response').first().json;\nconst stateJson = Buffer.from(processData.state_b64, 'base64').toString('utf8');\n\nreturn [{\n  json: { state_path: processData.state_path, written: processData.state_path },\n  binary: {\n    data: {\n      data: stateJson,\n      mimeType: 'text/plain'\n    }\n  }\n}];\n"
       },
       "id": "fe3c2fba-cc46-420d-8eb4-1b6a744980cd",
-      "name": "Execute Command - Write State",
+      "name": "Code - Prepare State Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -337,10 +324,10 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\n\nconst formatData = $('Code - Format Handoff').first().json;\nconst handoffContent = Buffer.from(formatData.handoff_b64, 'base64').toString('utf8');\n\n// Ensure directory exists\nfs.mkdirSync(path.dirname(formatData.handoff_path), { recursive: true });\nfs.writeFileSync(formatData.handoff_path, handoffContent, 'utf8');\n\nreturn [{ json: { written: formatData.handoff_path, project: formatData.project, handoff_path: formatData.handoff_path } }];\n"
+        "jsCode": "\nconst formatData = $('Code - Format Handoff').first().json;\nconst handoffContent = Buffer.from(formatData.handoff_b64, 'base64').toString('utf8');\n\nreturn [{\n  json: {\n    written: formatData.handoff_path,\n    project: formatData.project,\n    handoff_path: formatData.handoff_path\n  },\n  binary: {\n    data: {\n      data: handoffContent,\n      mimeType: 'text/markdown'\n    }\n  }\n}];\n"
       },
       "id": "51d5da50-c69f-4196-a3a7-297709ab8bc4",
-      "name": "Execute Command - Write Handoff",
+      "name": "Code - Prepare Handoff Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -375,6 +362,106 @@
       "typeVersion": 2,
       "position": [
         18192,
+        5984
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileName": "=={{ $('Code - Validate Inputs').first().json.state_path }}",
+        "options": {}
+      },
+      "id": "5b46a026-417f-48ff-bf6f-9948e7bcea2b",
+      "name": "Read Binary File - Interview State",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        16296,
+        5984
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileName": "=/home/node/prompts/prd-development/prd-interviewer.md",
+        "options": {}
+      },
+      "id": "d822e462-c85f-4260-9f20-f94d21fd0952",
+      "name": "Read Binary File - Prompt",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        16400,
+        5784
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileName": "=/home/node/skills/prd/stakeholder-interview.md",
+        "options": {}
+      },
+      "id": "ffaafbae-24f7-4abb-b032-17a24902f181",
+      "name": "Read Binary File - Skill 1",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        16400,
+        5984
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileName": "=/home/node/skills/prd/requirements-engineering.md",
+        "options": {}
+      },
+      "id": "b808b6ec-1ebe-4fd0-a8b3-ac753490ea6d",
+      "name": "Read Binary File - Skill 2",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        16400,
+        6184
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('Code - Process Response').first().json.state_path }}",
+        "dataPropertyName": "data",
+        "options": {
+          "encoding": "utf8"
+        }
+      },
+      "id": "651e92cd-4af4-474b-94ec-dc8db8dc63fc",
+      "name": "Write Binary File - Interview State",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        17800,
+        5984
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "={{ $('Code - Format Handoff').first().json.handoff_path }}",
+        "dataPropertyName": "data",
+        "options": {
+          "encoding": "utf8"
+        }
+      },
+      "id": "2888f89e-f449-40d1-a5c9-895cc8f6ae83",
+      "name": "Write Binary File - Handoff",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        19304,
         5984
       ]
     }
@@ -593,7 +680,7 @@
   "pinData": {},
   "versionId": "5427e5c7-cfe6-43a7-ba55-92599c279dae",
   "activeVersionId": "5427e5c7-cfe6-43a7-ba55-92599c279dae",
-  "versionCounter": 33,
+  "versionCounter": 34,
   "triggerCount": 2,
   "shared": [
     {
@@ -616,7 +703,7 @@
   ],
   "tags": [],
   "activeVersion": {
-    "updatedAt": "2026-03-01T01:14:39.439Z",
+    "updatedAt": "2026-03-03T16:54:53.260596Z",
     "createdAt": "2026-03-01T01:14:39.439Z",
     "versionId": "5427e5c7-cfe6-43a7-ba55-92599c279dae",
     "workflowId": "bAH4CRlxwlupkanC",
@@ -762,23 +849,10 @@
       },
       {
         "parameters": {
-          "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\n\nconst inputs = $('Code - Validate Inputs').first().json;\nconst workspacePath = inputs.workspace_path;\nconst handoffDir = path.join(workspacePath, 'handoffs');\n\nfs.mkdirSync(handoffDir, { recursive: true });\n\nreturn [{ json: { created: handoffDir } }];\n"
-        },
-        "id": "f0fd4802-83f5-4d9f-815d-6960aedd6389",
-        "name": "Execute Command - Create Dirs",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [
-          15792,
-          5984
-        ]
-      },
-      {
-        "parameters": {
-          "jsCode": "\nconst fs = require('fs');\n\nconst statePath = $('Code - Validate Inputs').first().json.state_path;\n\nlet stateJson = '{\"messages\":[],\"turn\":0}';\ntry {\n  if (fs.existsSync(statePath)) {\n    stateJson = fs.readFileSync(statePath, 'utf8');\n  }\n} catch(e) {\n  // return empty state if any error\n}\n\nreturn [{ json: { stdout: stateJson } }];\n"
+          "jsCode": "\nconst input = $input.first();\n\n// Check if binary data exists (file was read successfully)\nif (input.binary && input.binary.data) {\n  const buffer = Buffer.from(input.binary.data.data, 'base64');\n  const stateJson = buffer.toString('utf8');\n  return [{ json: { stdout: stateJson } }];\n} else {\n  // File doesn't exist - return empty state\n  const stateJson = '{\"messages\":[],\"turn\":0}';\n  return [{ json: { stdout: stateJson } }];\n}\n"
         },
         "id": "df3a7355-df68-493f-9949-991b0160157d",
-        "name": "Execute Command - Read State",
+        "name": "Code - Parse State",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
         "position": [
@@ -788,10 +862,10 @@
       },
       {
         "parameters": {
-          "jsCode": "\nconst fs = require('fs');\n\nfunction readFile(p) {\n  try { return fs.readFileSync(p, 'utf8'); } catch(e) { return ''; }\n}\n\nconst promptPath = '/home/node/prompts/prd-development/prd-interviewer.md';\nconst skill1Path = '/home/node/skills/prd/stakeholder-interview.md';\nconst skill2Path = '/home/node/skills/prd/requirements-engineering.md';\n\nconst prompt = readFile(promptPath);\nconst skill1 = readFile(skill1Path);\nconst skill2 = readFile(skill2Path);\n\nconst combined = [prompt, skill1, skill2].filter(Boolean).join('\\n\\n---\\n\\n');\n\nreturn [{ json: { stdout: combined } }];\n"
+          "jsCode": "\nconst prompt = Buffer.from($('Read Binary File - Prompt').first().binary.data.data, 'base64').toString('utf8');\nconst skill1 = Buffer.from($('Read Binary File - Skill 1').first().binary.data.data, 'base64').toString('utf8');\nconst skill2 = Buffer.from($('Read Binary File - Skill 2').first().binary.data.data, 'base64').toString('utf8');\n\nconst combined = [prompt, skill1, skill2].filter(Boolean).join('\\n\\n---\\n\\n');\nreturn [{ json: { stdout: combined } }];\n"
         },
         "id": "f022ddbc-3824-4460-97da-2fa3468debae",
-        "name": "Execute Command - Read Prompt",
+        "name": "Code - Combine Prompts",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
         "position": [
@@ -831,7 +905,10 @@
         "position": [
           16992,
           5984
-        ]
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 30000
       },
       {
         "parameters": {
@@ -848,10 +925,10 @@
       },
       {
         "parameters": {
-          "jsCode": "\nconst fs = require('fs');\n\nconst processData = $('Code - Process Response').first().json;\nconst stateJson = Buffer.from(processData.state_b64, 'base64').toString('utf8');\n\nfs.writeFileSync(processData.state_path, stateJson, 'utf8');\n\nreturn [{ json: { written: processData.state_path } }];\n"
+          "jsCode": "\nconst processData = $('Code - Process Response').first().json;\nconst stateJson = Buffer.from(processData.state_b64, 'base64').toString('utf8');\n\nreturn [{\n  json: { state_path: processData.state_path, written: processData.state_path },\n  binary: {\n    data: {\n      data: stateJson,\n      mimeType: 'text/plain'\n    }\n  }\n}];\n"
         },
         "id": "fe3c2fba-cc46-420d-8eb4-1b6a744980cd",
-        "name": "Execute Command - Write State",
+        "name": "Code - Prepare State Data",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
         "position": [
@@ -928,7 +1005,10 @@
         "position": [
           18496,
           5984
-        ]
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 30000
       },
       {
         "parameters": {
@@ -945,10 +1025,10 @@
       },
       {
         "parameters": {
-          "jsCode": "\nconst fs = require('fs');\nconst path = require('path');\n\nconst formatData = $('Code - Format Handoff').first().json;\nconst handoffContent = Buffer.from(formatData.handoff_b64, 'base64').toString('utf8');\n\n// Ensure directory exists\nfs.mkdirSync(path.dirname(formatData.handoff_path), { recursive: true });\nfs.writeFileSync(formatData.handoff_path, handoffContent, 'utf8');\n\nreturn [{ json: { written: formatData.handoff_path, project: formatData.project, handoff_path: formatData.handoff_path } }];\n"
+          "jsCode": "\nconst formatData = $('Code - Format Handoff').first().json;\nconst handoffContent = Buffer.from(formatData.handoff_b64, 'base64').toString('utf8');\n\nreturn [{\n  json: {\n    written: formatData.handoff_path,\n    project: formatData.project,\n    handoff_path: formatData.handoff_path\n  },\n  binary: {\n    data: {\n      data: handoffContent,\n      mimeType: 'text/markdown'\n    }\n  }\n}];\n"
         },
         "id": "51d5da50-c69f-4196-a3a7-297709ab8bc4",
-        "name": "Execute Command - Write Handoff",
+        "name": "Code - Prepare Handoff Data",
         "type": "n8n-nodes-base.code",
         "typeVersion": 2,
         "position": [
@@ -983,6 +1063,106 @@
         "typeVersion": 2,
         "position": [
           18192,
+          5984
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "read",
+          "fileName": "=={{ $('Code - Validate Inputs').first().json.state_path }}",
+          "options": {}
+        },
+        "id": "5b46a026-417f-48ff-bf6f-9948e7bcea2b",
+        "name": "Read Binary File - Interview State",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1,
+        "position": [
+          16296,
+          5984
+        ],
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "read",
+          "fileName": "=/home/node/prompts/prd-development/prd-interviewer.md",
+          "options": {}
+        },
+        "id": "d822e462-c85f-4260-9f20-f94d21fd0952",
+        "name": "Read Binary File - Prompt",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1,
+        "position": [
+          16400,
+          5784
+        ],
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "read",
+          "fileName": "=/home/node/skills/prd/stakeholder-interview.md",
+          "options": {}
+        },
+        "id": "ffaafbae-24f7-4abb-b032-17a24902f181",
+        "name": "Read Binary File - Skill 1",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1,
+        "position": [
+          16400,
+          5984
+        ],
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "read",
+          "fileName": "=/home/node/skills/prd/requirements-engineering.md",
+          "options": {}
+        },
+        "id": "b808b6ec-1ebe-4fd0-a8b3-ac753490ea6d",
+        "name": "Read Binary File - Skill 2",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1,
+        "position": [
+          16400,
+          6184
+        ],
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "operation": "write",
+          "fileName": "={{ $('Code - Process Response').first().json.state_path }}",
+          "dataPropertyName": "data",
+          "options": {
+            "encoding": "utf8"
+          }
+        },
+        "id": "651e92cd-4af4-474b-94ec-dc8db8dc63fc",
+        "name": "Write Binary File - Interview State",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1,
+        "position": [
+          17800,
+          5984
+        ]
+      },
+      {
+        "parameters": {
+          "operation": "write",
+          "fileName": "={{ $('Code - Format Handoff').first().json.handoff_path }}",
+          "dataPropertyName": "data",
+          "options": {
+            "encoding": "utf8"
+          }
+        },
+        "id": "2888f89e-f449-40d1-a5c9-895cc8f6ae83",
+        "name": "Write Binary File - Handoff",
+        "type": "n8n-nodes-base.readWriteFile",
+        "typeVersion": 1,
+        "position": [
+          19304,
           5984
         ]
       }
