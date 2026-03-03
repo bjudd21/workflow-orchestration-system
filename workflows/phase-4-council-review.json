@@ -226,7 +226,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n\n// Extract PRD version from frontmatter\nconst versionMatch = prd.match(/^version:\\s*(v\\d+)$/m);\nconst prdVersion = versionMatch ? versionMatch[1] : 'v1';\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd , prdVersion }];"
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n\n// Extract PRD version from frontmatter\nconst versionMatch = prd.match(/^version:\\s*(v\\d+)$/m);\nconst prdVersion = versionMatch ? versionMatch[1] : 'v1';\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd, prdVersion } }];"
       }
     },
     {
