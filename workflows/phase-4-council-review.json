@@ -172,7 +172,7 @@
           "conditions": [
             {
               "id": "act",
-              "leftValue": "={{ $('Code - Validate Inputs').first().json.action }}",
+              "leftValue": "={{ $json.action }}",
               "rightValue": "review",
               "operator": {
                 "type": "string",
@@ -204,7 +204,7 @@
           "conditions": [
             {
               "id": "dec",
-              "leftValue": "={{ $('Code - Validate Inputs').first().json.action }}",
+              "leftValue": "={{ $json.action }}",
               "rightValue": "decide",
               "operator": {
                 "type": "string",
@@ -226,7 +226,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd } }];"
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd } }];"
       }
     },
     {
@@ -627,7 +627,7 @@
         6600
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst decision = d.decision;\nif (!decision) throw new Error('decision required (ACCEPTED or REJECTED)');\n\nconst revisions = d.revisions.trim();\nconst prdMatch = councilText.match(/prd_version_reviewed:\\s*(v\\d+)/);\nconst oldVer = prdMatch ? prdMatch[1] : 'v1';\nconst newVerNum = parseInt(oldVer.substring(1)) + 1;\nconst newVer = `v${newVerNum}`;\n\n// Update council handoff with decision\nconst today = new Date().toISOString().split('T')[0];\nconst decisionBlock = `\\n\\n---\\n## User Decision (${today})\\n\\n**Status**: ${decision}\\n${revisions ? `\\n**Revisions to Apply**:\\n${revisions}\\n` : ''}\\n---\\n`;\nconst updatedCouncil = councilText + decisionBlock;\n\nreturn [{\n  json: {\n    ...d,\n    decision,\n    oldPrdVersion: oldVer,\n    newPrdVersion: decision === 'ACCEPTED' ? newVer : oldVer,\n    councilHandoffContent: updatedCouncil,\n    message: `Decision recorded: ${decision}${decision === 'ACCEPTED' ? ` (PRD ${oldVer} \u2192 ${newVer})` : ''}`\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst decision = d.decision;\nif (!decision) throw new Error('decision required (ACCEPTED or REJECTED)');\n\nconst revisions = d.revisions.trim();\nconst prdMatch = councilText.match(/prd_version_reviewed:\\s*(v\\d+)/);\nconst oldVer = prdMatch ? prdMatch[1] : 'v1';\nconst newVerNum = parseInt(oldVer.substring(1)) + 1;\nconst newVer = `v${newVerNum}`;\n\n// Update council handoff with decision\nconst today = new Date().toISOString().split('T')[0];\nconst decisionBlock = `\\n\\n---\\n## User Decision (${today})\\n\\n**Status**: ${decision}\\n${revisions ? `\\n**Revisions to Apply**:\\n${revisions}\\n` : ''}\\n---\\n`;\nconst updatedCouncil = councilText + decisionBlock;\n\nreturn [{\n  json: {\n    ...d,\n    decision,\n    oldPrdVersion: oldVer,\n    newPrdVersion: decision === 'ACCEPTED' ? newVer : oldVer,\n    councilHandoffContent: updatedCouncil,\n    message: `Decision recorded: ${decision}${decision === 'ACCEPTED' ? ` (PRD ${oldVer} \u2192 ${newVer})` : ''}`\n  }\n}];"
       }
     },
     {
@@ -664,7 +664,7 @@
         6900
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst gate = d.gateDecision;\nif (!gate) throw new Error('gate_decision required (PROCEED or RECONVENE)');\n\nconst today = new Date().toISOString().split('T')[0];\nconst rationale = gate === 'PROCEED' ?\n  'User approved proceeding to next phase.' :\n  'User requested council reconvene for re-review.';\n\nconst gateBlock = `\\n\\n---\\n## Re-Review Gate (${today})\\n\\n**Gate Decision**: ${gate}\\n**Rationale**: ${rationale}\\n---\\n`;\nconst updatedCouncil = councilText + gateBlock;\n\nconst nextReviewFile = gate === 'RECONVENE' ?\n  `${d.wp}/handoffs/004-council-review-r${d.reviewNum + 1}.md` :\n  '';\n\nreturn [{\n  json: {\n    ...d,\n    gateDecision: gate,\n    councilHandoffContent: updatedCouncil,\n    nextReviewFile,\n    message: `Gate decision: ${gate}${gate === 'RECONVENE' ? ` (next: r${d.reviewNum + 1})` : ''}`\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst gate = d.gateDecision;\nif (!gate) throw new Error('gate_decision required (PROCEED or RECONVENE)');\n\nconst today = new Date().toISOString().split('T')[0];\nconst rationale = gate === 'PROCEED' ?\n  'User approved proceeding to next phase.' :\n  'User requested council reconvene for re-review.';\n\nconst gateBlock = `\\n\\n---\\n## Re-Review Gate (${today})\\n\\n**Gate Decision**: ${gate}\\n**Rationale**: ${rationale}\\n---\\n`;\nconst updatedCouncil = councilText + gateBlock;\n\nconst nextReviewFile = gate === 'RECONVENE' ?\n  `${d.wp}/handoffs/004-council-review-r${d.reviewNum + 1}.md` :\n  '';\n\nreturn [{\n  json: {\n    ...d,\n    gateDecision: gate,\n    councilHandoffContent: updatedCouncil,\n    nextReviewFile,\n    message: `Gate decision: ${gate}${gate === 'RECONVENE' ? ` (next: r${d.reviewNum + 1})` : ''}`\n  }\n}];"
       }
     },
     {
@@ -701,7 +701,7 @@
         6600
       ],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet councilFileContent;\ntry {\n  councilFileContent = fs.readFileSync(d.councilHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`Council review not found at ${d.councilHandoff}.`);\n}\nreturn [{ json: { ...d, councilFileContent } }];"
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet councilFileContent;\ntry {\n  councilFileContent = fs.readFileSync(d.councilHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`Council review not found at ${d.councilHandoff}.`);\n}\nreturn [{ json: { ...d, councilFileContent } }];"
       }
     },
     {
@@ -714,7 +714,7 @@
         6900
       ],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet councilFileContent;\ntry {\n  councilFileContent = fs.readFileSync(d.councilHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`Council review not found at ${d.councilHandoff}.`);\n}\nreturn [{ json: { ...d, councilFileContent } }];"
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet councilFileContent;\ntry {\n  councilFileContent = fs.readFileSync(d.councilHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`Council review not found at ${d.councilHandoff}.`);\n}\nreturn [{ json: { ...d, councilFileContent } }];"
       }
     },
     {
@@ -727,7 +727,7 @@
         6650
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst decision = d.decision;\nconst revisions = (d.revisions || '').trim();\n\nreturn [{\n  json: {\n    ...d,\n    shouldRevise: decision === 'ACCEPTED' && revisions.length > 0\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst decision = d.decision;\nconst revisions = (d.revisions || '').trim();\n\nreturn [{\n  json: {\n    ...d,\n    shouldRevise: decision === 'ACCEPTED' && revisions.length > 0\n  }\n}];"
       }
     },
     {
@@ -770,7 +770,7 @@
         6550
       ],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst d = $('Code - Validate Inputs').first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}.`);\n}\nreturn [{ json: { ...d, prd } }];"
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}.`);\n}\nreturn [{ json: { ...d, prd } }];"
       }
     },
     {
@@ -783,7 +783,7 @@
         6550
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst item = $input.first().json;\nconst currentPRD = item.prd || '';\n\n// Extract version from PRD frontmatter\nconst versionMatch = currentPRD.match(/version:\\s*(v\\d+)/);\nconst currentVersion = versionMatch ? versionMatch[1] : 'v1';\nconst newVersionNum = parseInt(currentVersion.substring(1)) + 1;\nconst newVersion = `v${newVersionNum}`;\n\nreturn [{\n  json: {\n    ...d,\n    currentPRD,\n    currentVersion,\n    newVersion\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst item = $input.first().json;\nconst currentPRD = item.prd || '';\n\n// Extract version from PRD frontmatter\nconst versionMatch = currentPRD.match(/version:\\s*(v\\d+)/);\nconst currentVersion = versionMatch ? versionMatch[1] : 'v1';\nconst newVersionNum = parseInt(currentVersion.substring(1)) + 1;\nconst newVersion = `v${newVersionNum}`;\n\nreturn [{\n  json: {\n    ...d,\n    currentPRD,\n    currentVersion,\n    newVersion\n  }\n}];"
       }
     },
     {
@@ -796,7 +796,7 @@
         6550
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\n\n// Build PRD Writer prompt for revisions\nconst systemPrompt = `You are the PRD Writer. Apply the following council recommendations to the PRD below.\n\nCOUNCIL RECOMMENDATIONS TO APPLY:\n${d.revisions}\n\nCURRENT PRD (${d.currentVersion}):\n${d.currentPRD}\n\nINSTRUCTIONS:\n- Apply ONLY the specific recommendations listed above\n- Maintain all existing sections and structure\n- Update the version in frontmatter to ${d.newVersion}\n- Preserve all other content unchanged\n- Output the complete updated PRD\n\nOUTPUT: Complete revised PRD with version ${d.newVersion}`;\n\nreturn [{\n  json: {\n    model: \"qwen3.5:35b-a3b\",\n    prompt: systemPrompt,\n    stream: False,\n    temperature: 0.7,\n    num_predict: 8000\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\n\n// Build PRD Writer prompt for revisions\nconst systemPrompt = `You are the PRD Writer. Apply the following council recommendations to the PRD below.\n\nCOUNCIL RECOMMENDATIONS TO APPLY:\n${d.revisions}\n\nCURRENT PRD (${d.currentVersion}):\n${d.currentPRD}\n\nINSTRUCTIONS:\n- Apply ONLY the specific recommendations listed above\n- Maintain all existing sections and structure\n- Update the version in frontmatter to ${d.newVersion}\n- Preserve all other content unchanged\n- Output the complete updated PRD\n\nOUTPUT: Complete revised PRD with version ${d.newVersion}`;\n\nreturn [{\n  json: {\n    ...d,\n    model: \"qwen3.5:35b-a3b\",\n    prompt: systemPrompt,\n    stream: False,\n    temperature: 0.7,\n    num_predict: 8000\n  }\n}];"
       }
     },
     {
@@ -836,7 +836,7 @@
         6550
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst resp = $input.first().json;\nconst revisedPRD = resp.response || '';\n\nif (!revisedPRD || revisedPRD.length < 100) {\n  throw new Error('PRD revision failed - empty or too short response');\n}\n\nconst version = $('Code - Parse Current PRD').first().json.newVersion;\n\nreturn [{\n  json: {\n    ...d,\n    revisedPRD,\n    newPrdVersion: version,\n    prdFileName: `prd-${d.project}-${version}.md`\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst resp = $input.first().json;\nconst revisedPRD = resp.response || '';\n\nif (!revisedPRD || revisedPRD.length < 100) {\n  throw new Error('PRD revision failed - empty or too short response');\n}\n\nconst version = d.newVersion;  // newVersion passed through data flow\n\nreturn [{\n  json: {\n    ...d,\n    revisedPRD,\n    newPrdVersion: version,\n    prdFileName: `prd-${d.project}-${version}.md`\n  }\n}];"
       }
     },
     {
@@ -875,7 +875,7 @@
         6900
       ],
       "parameters": {
-        "jsCode": "const d = $('Code - Validate Inputs').first().json;\nconst gate = d.gateDecision;\n\nreturn [{\n  json: {\n    ...d,\n    shouldReconvene: gate === 'RECONVENE'\n  }\n}];"
+        "jsCode": "const d = $input.first().json;\nconst gate = d.gateDecision;\n\nreturn [{\n  json: {\n    ...d,\n    shouldReconvene: gate === 'RECONVENE'\n  }\n}];"
       }
     },
     {
