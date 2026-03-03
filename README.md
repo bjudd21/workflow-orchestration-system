@@ -2,7 +2,7 @@
 
 A phase-based, multi-agent workflow that transforms a project idea into a council-reviewed PRD, structured task list, and GitHub Issues — using local Ollama inference with no API keys required.
 
-**Status**: True MVP in progress — Phase 2 (PRD Interview) complete and tested.
+**Status**: True MVP in progress — Phase 2 (Interview), Phase 3 (Synthesis), and Phase 4 (Council Review) complete and tested.
 
 ---
 
@@ -35,7 +35,7 @@ docker compose up -d
 ### Prerequisites
 
 - WSL2 (Ubuntu) or Linux
-- NVIDIA GPU with ≥24GB VRAM (RTX 4090 or equivalent)
+- NVIDIA GPU with ≥18GB VRAM (RTX 4090, RTX 4080, or equivalent)
 - Docker Desktop or Docker Engine + Compose
 - Ollama with CUDA support (`ollama serve` running on host)
 - ~40GB free disk space for model weights
@@ -58,22 +58,67 @@ To restart or reset an interview, delete `workspace/{project-name}/interview-sta
 
 ---
 
-## Model Configuration
+## Phase 3: PRD Synthesis
 
-Two models are used and **cannot run simultaneously** on a 24GB GPU:
+Phase 3 takes the interview handoff and synthesizes a complete PRD. It runs automatically after Phase 2 completes, or can be triggered manually via webhook.
 
-| Role | Model | VRAM | Used for |
-|------|-------|------|----------|
-| Speed | `qwen3.5:35b-a3b` | ~18GB | Interview turns, council reviewers |
-| Quality | `qwen3.5:35b` | ~23GB | PRD synthesis, council chair |
+**Input**: `workspace/{project}/handoffs/002-prd-interview.md`
+**Output**: `workspace/{project}/handoffs/003-prd-refined.md`
 
-Pull both before running:
+The synthesis uses the quality model to produce a structured PRD with:
+- Executive Summary
+- Functional Requirements (FR-1, FR-2, etc.)
+- Non-Functional Requirements (NFR-1, NFR-2, etc.)
+- User Stories
+- Architecture overview
+- Risk Assessment
+- MVP Definition
+
+---
+
+## Phase 4: Council Review
+
+Phase 4 runs a 5-agent council review of the synthesized PRD:
+
+**4 Core Reviewers** (run in parallel):
+1. **Technical Reviewer** — Challenges technical feasibility and architecture
+2. **Security Reviewer** — Identifies security risks and compliance gaps
+3. **Executive Reviewer** — Ensures business value and ROI alignment
+4. **User Advocate** — Champions end-user experience and usability
+
+**Council Chair** — Synthesizes all reviewer feedback into consensus points, conflicts, and a unified verdict.
+
+**Trigger via webhook**:
 ```bash
-ollama pull qwen3.5:35b-a3b
-ollama pull qwen3.5:35b
+curl -X POST http://localhost:5678/webhook/council-review-action \
+  -H "Content-Type: application/json" \
+  -d '{"project":"your-project-name","action":"review"}'
 ```
 
-The setup script handles this automatically.
+**Response includes**:
+- All reviewer outputs (5 detailed assessments)
+- Council Chair synthesis (consensus + conflicts)
+- Overall verdict: APPROVED / APPROVED WITH CONCERNS / REVISE AND RESUBMIT
+- Required revisions (if any)
+
+**Execution time**: ~2 minutes (5 LLM calls with single model)
+
+---
+
+## Model Configuration
+
+**MVP uses a single model** to avoid GPU memory swapping on 24GB cards:
+
+| Model | VRAM | Used for |
+|-------|------|----------|
+| `qwen3.5:35b-a3b` | ~18GB | All phases (interview, synthesis, council reviewers + chair) |
+
+Pull the model before running:
+```bash
+ollama pull qwen3.5:35b-a3b
+```
+
+The setup script handles this automatically. Future Full MVP will use two models (speed + quality) with proper model swapping.
 
 ---
 
@@ -108,9 +153,9 @@ workspace/          ← Runtime project workspaces (gitignored)
 | 2.0 Core agent prompts (7 agents) | ✅ Complete |
 | 3.0 Core skills + handoff contracts | ✅ Complete |
 | 4.0 Phase 2: PRD Interview workflow | ✅ Complete — live and tested |
-| 5.0 Phase 3: PRD Synthesis workflow | 🔨 Next |
-| 6.0 Phase 4: Council Review workflow | ⬜ Pending |
-| 7.0 True MVP integration test | ⬜ Pending |
+| 5.0 Phase 3: PRD Synthesis workflow | ✅ Complete — live and tested |
+| 6.0 Phase 4: Council Review workflow | ✅ Complete — live and tested (5 reviewers) |
+| 7.0 True MVP integration test | 🔨 Next |
 
 ---
 
@@ -118,7 +163,7 @@ workspace/          ← Runtime project workspaces (gitignored)
 
 - **Ollama runs on the host**, not in Docker. Accessed from n8n container via `host.docker.internal:11434`.
 - **File I/O** in Code nodes uses `require('fs')` — works in self-hosted n8n despite validator warnings.
-- **Model swap latency**: 15–30s between speed and quality model. Workflows batch all speed-model calls before invoking the quality model once.
+- **Single model for MVP**: Using qwen3.5:35b-a3b for all LLM calls to avoid GPU memory issues. Model swapping deferred to Full MVP.
 - **State persistence**: Conversation state is stored as JSON in `workspace/{project}/interview-state.json`. Restarting n8n or Docker does not lose state.
 - **Handoff validation**: Each phase validates its output against schemas in `contracts/` before writing the handoff file.
 
