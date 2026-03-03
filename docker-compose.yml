@@ -35,7 +35,8 @@ services:
       # Ollama endpoint — accessible from container via Docker host networking
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - OLLAMA_SPEED_MODEL=${OLLAMA_SPEED_MODEL:-qwen3.5:35b-a3b}
-      - OLLAMA_QUALITY_MODEL=${OLLAMA_QUALITY_MODEL:-qwen3.5:35b}
+      # MVP: Using same model for both to avoid GPU memory swapping
+      - OLLAMA_QUALITY_MODEL=${OLLAMA_QUALITY_MODEL:-qwen3.5:35b-a3b}
 
       # Full MVP API providers (uncomment when needed)
       # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
