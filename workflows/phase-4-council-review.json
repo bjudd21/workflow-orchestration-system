@@ -344,7 +344,7 @@
         },
         "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+        "jsonBody": "={{ {\"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000}} }}"
       },
       "retryOnFail": true,
       "maxTries": 3,
@@ -395,7 +395,7 @@
         },
         "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+        "jsonBody": "={{ {\"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000}} }}"
       },
       "retryOnFail": true,
       "maxTries": 3,
@@ -446,7 +446,7 @@
         },
         "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+        "jsonBody": "={{ {\"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000}} }}"
       },
       "retryOnFail": true,
       "maxTries": 3,
@@ -497,7 +497,7 @@
         },
         "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 4000\n  }\n}"
+        "jsonBody": "={{ {\"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000}} }}"
       },
       "retryOnFail": true,
       "maxTries": 3,
@@ -574,7 +574,7 @@
         },
         "rawBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": $json.sys + \"\\n\\n\" + $json.usr,\n  \"stream\": false,\n  \"options\": {\n    \"temperature\": 0.7,\n    \"num_predict\": 6000\n  }\n}"
+        "jsonBody": "={{ {\"model\": \"qwen3.5:35b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.8, \"num_predict\": 6000}} }}"
       },
       "retryOnFail": true,
       "maxTries": 3,
