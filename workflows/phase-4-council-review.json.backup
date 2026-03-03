@@ -226,7 +226,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n\n// Extract PRD version from frontmatter\nconst versionMatch = prd.match(/^version:\\s*(v\\d+)$/m);\nconst prdVersion = versionMatch ? versionMatch[1] : 'v1';\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd , prdVersion }];"
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd } }];"
       }
     },
     {
@@ -584,7 +584,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build Chair Request').first().json;\n\nconst chair = httpResp.response;\nconst vm = chair.match(/Overall Verdict:\\s*(APPROVED|APPROVED WITH CONCERNS|REVISE AND RESUBMIT)/i);\nconst verdict = vm ? vm[1] : 'APPROVED WITH CONCERNS';\nconst reviewText = `---\nphase: council-review\nproject: ${buildData.project}\nreview_number: ${buildData.reviewNum}\ndate: ${new Date().toISOString().split('T')[0]}\nprd_version_reviewed: ${buildData.prdVersion}\nreviewers:\n  - technical-reviewer\n  - security-reviewer\n  - executive-reviewer\n  - user-advocate\n  - council-chair\noverall_verdict: ${verdict}\nstatus: PENDING\n---\n\n# Council Review \u2014 ${buildData.project}\n\n## Reviewer Outputs\n\n### Technical Reviewer\n\n${buildData.r1}\n\n---\n\n### Security Reviewer\n\n${buildData.r2}\n\n---\n\n### Executive Reviewer\n\n${buildData.r3}\n\n---\n\n### User Advocate\n\n${buildData.r4}\n\n---\n\n## Council Chair Synthesis\n\n${chair}\n\n---\n\n## User Decisions\n\n**Status**: PENDING\n\nUser review in progress.\n\n---\n\n## PRD Revision Log\n\n**PRD version before council**: ${buildData.prdVersion}\n**PRD version after revisions**: (pending)\n\n### Changes Made\n\n(pending)\n\n---\n\n## Re-Review Status\n\n**Gate Decision**: (pending)\n**Decision Date**: (pending)\n**Rationale**: (pending)\n`;\nreturn [{ json: { ...buildData, reviewText, verdict, response: chair } }];"
+        "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build Chair Request').first().json;\n\nconst chair = httpResp.response;\nconst vm = chair.match(/Overall Verdict:\\s*(APPROVED|APPROVED WITH CONCERNS|REVISE AND RESUBMIT)/i);\nconst verdict = vm ? vm[1] : 'APPROVED WITH CONCERNS';\nconst reviewText = `---\nphase: council-review\nproject: ${buildData.project}\nreview_number: ${buildData.reviewNum}\ndate: ${new Date().toISOString().split('T')[0]}\nprd_version_reviewed: ${buildData.prdV}\nreviewers:\n  - technical-reviewer\n  - security-reviewer\n  - executive-reviewer\n  - user-advocate\n  - council-chair\noverall_verdict: ${verdict}\nstatus: PENDING\n---\n\n# Council Review \u2014 ${buildData.project}\n\n## Reviewer Outputs\n\n### Technical Reviewer\n\n${buildData.r1}\n\n---\n\n### Security Reviewer\n\n${buildData.r2}\n\n---\n\n### Executive Reviewer\n\n${buildData.r3}\n\n---\n\n### User Advocate\n\n${buildData.r4}\n\n---\n\n## Council Chair Synthesis\n\n${chair}\n\n---\n\n## User Decisions\n\n**Status**: PENDING\n\nUser review in progress.\n\n---\n\n## PRD Revision Log\n\n**PRD version before council**: ${buildData.prdV}\n**PRD version after revisions**: (pending)\n\n### Changes Made\n\n(pending)\n\n---\n\n## Re-Review Status\n\n**Gate Decision**: (pending)\n**Decision Date**: (pending)\n**Rationale**: (pending)\n`;\nreturn [{ json: { ...buildData, reviewText, verdict, response: chair } }];"
       }
     },
     {
@@ -901,37 +901,6 @@
           ]
         }
       }
-    },
-    {
-      "id": "705eaf5a-7e72-4526-8965-38d2ef2f39bf",
-      "name": "Code - Prepare Handoff Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        21900,
-        6100
-      ],
-      "parameters": {
-        "jsCode": "\nconst assembleData = $input.first().json;\n\n// Prepare file write\nconst handoffPath = `/home/node/workspace/${assembleData.project}/handoffs/004-council-review.md`;\n\nreturn [{\n  json: assembleData,\n  binary: {\n    data: {\n      data: assembleData.review_text,\n      mimeType: 'text/markdown',\n      fileName: handoffPath\n    }\n  }\n}];\n"
-      }
-    },
-    {
-      "id": "42acf231-5db5-426f-9e41-980d4e2e5dda",
-      "name": "Write Binary File - Council Review",
-      "type": "n8n-nodes-base.readWriteFile",
-      "typeVersion": 1,
-      "position": [
-        22200,
-        6100
-      ],
-      "parameters": {
-        "operation": "write",
-        "fileName": "={{ $input.first().json.project ? `/home/node/workspace/${$input.first().json.project}/handoffs/004-council-review.md` : '/tmp/council-review.md' }}",
-        "dataPropertyName": "data",
-        "options": {
-          "encoding": "utf8"
-        }
-      }
     }
   ],
   "connections": {
@@ -1242,7 +1211,7 @@
       "main": [
         [
           {
-            "node": "Code - Prepare Handoff Data",
+            "node": "Respond - Review Done",
             "type": "main",
             "index": 0
           }
@@ -1438,50 +1407,6 @@
           }
         ]
       ]
-    },
-    "869ea519-ca49-4da8-9d4b-f43c721668fa": {
-      "main": [
-        [
-          {
-            "node": "Code - Prepare Handoff Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "705eaf5a-7e72-4526-8965-38d2ef2f39bf": {
-      "main": [
-        [
-          {
-            "node": "Write Binary File - Council Review",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Code - Prepare Handoff Data": {
-      "main": [
-        [
-          {
-            "node": "Write Binary File - Council Review",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Write Binary File - Council Review": {
-      "main": [
-        [
-          {
-            "node": "Respond - Review Done",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
   "settings": {
@@ -1490,7 +1415,7 @@
   "staticData": null,
   "tags": [],
   "triggerCount": 0,
-  "updatedAt": "2026-03-03T17:07:24.869140Z",
+  "updatedAt": "2026-03-01T20:43:47.998309Z",
   "versionId": "1",
   "createdAt": "2026-03-01T20:43:47.998303Z",
   "isArchived": false
