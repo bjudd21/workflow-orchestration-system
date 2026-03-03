@@ -338,11 +338,10 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "raw",
+        "contentType": "json",
         "options": {
           "timeout": 300000
         },
-        "rawBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ {\"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000}} }}"
       },
@@ -389,11 +388,10 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "raw",
+        "contentType": "json",
         "options": {
           "timeout": 300000
         },
-        "rawBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ {\"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000}} }}"
       },
@@ -440,11 +438,10 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "raw",
+        "contentType": "json",
         "options": {
           "timeout": 300000
         },
-        "rawBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ {\"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000}} }}"
       },
@@ -491,11 +488,10 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "raw",
+        "contentType": "json",
         "options": {
           "timeout": 300000
         },
-        "rawBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ {\"model\": \"qwen3.5:35b-a3b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.7, \"num_predict\": 4000}} }}"
       },
@@ -529,11 +525,10 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "raw",
+        "contentType": "json",
         "options": {
           "timeout": 60000
         },
-        "rawBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"model\": \"qwen3.5:35b-a3b\",\n  \"prompt\": \"Respond with: ready\",\n  \"stream\": false,\n  \"options\": {\n    \"num_predict\": 10\n  }\n}"
       },
@@ -568,11 +563,10 @@
         "method": "POST",
         "url": "http://host.docker.internal:11434/api/generate",
         "sendBody": true,
-        "contentType": "raw",
+        "contentType": "json",
         "options": {
           "timeout": 300000
         },
-        "rawBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ {\"model\": \"qwen3.5:35b\", \"prompt\": $json.sys + \"\\n\\n\" + $json.usr, \"stream\": false, \"options\": {\"temperature\": 0.8, \"num_predict\": 6000}} }}"
       },
