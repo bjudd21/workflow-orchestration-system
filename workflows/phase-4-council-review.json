@@ -359,7 +359,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r1: d.response, r1name: 'Technical Reviewer' } }];"
+        "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R1 Request').first().json;\n\nreturn [{ json: { ...buildData, r1: httpResp.response, r1name: 'Technical Reviewer' } }];"
       }
     },
     {
@@ -409,7 +409,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r2: d.response, r2name: 'Security Reviewer' } }];"
+        "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R2 Request').first().json;\n\nreturn [{ json: { ...buildData, r2: httpResp.response, r2name: 'Security Reviewer' } }];"
       }
     },
     {
@@ -459,7 +459,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r3: d.response, r3name: 'Executive Reviewer' } }];"
+        "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R3 Request').first().json;\n\nreturn [{ json: { ...buildData, r3: httpResp.response, r3name: 'Executive Reviewer' } }];"
       }
     },
     {
@@ -509,7 +509,7 @@
         6100
       ],
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nreturn [{ json: { ...d, r4: d.response, r4name: 'User Advocate' } }];"
+        "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R4 Request').first().json;\n\nreturn [{ json: { ...buildData, r4: httpResp.response, r4name: 'User Advocate' } }];"
       }
     },
     {
