@@ -65,6 +65,21 @@ services:
       # Ensure host.docker.internal resolves on Linux/WSL2
       - "host.docker.internal:host-gateway"
 
+  sse-broadcast:
+    build: ./services/sse-broadcast
+    container_name: workflow-orchestration-sse
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 volumes:
   n8n-data:
     name: workflow-orchestration-n8n-data
