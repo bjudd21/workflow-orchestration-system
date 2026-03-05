@@ -307,7 +307,7 @@
         5984
       ],
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst data = $input.first().json;\n\nfs.mkdirSync(data.prdDir, { recursive: true });\nfs.writeFileSync(data.prdPath, data.prdText, 'utf8');\n\nreturn [{\n  json: {\n    prd_text: data.prdText,\n    version: data.version,\n    project: data.project,\n    prd_path: data.prdPath\n  }\n}];\n"
+        "jsCode": "const fs = require('fs');\nconst path = require('path');\nconst data = $input.first().json;\n\n// Write versioned PRD to tasks/\nfs.mkdirSync(data.prdDir, { recursive: true });\nfs.writeFileSync(data.prdPath, data.prdText, 'utf8');\n\n// Also write to handoffs/003-prd-refined.md\nconst handoffDir = path.dirname(data.handoffPath);\nfs.mkdirSync(handoffDir, { recursive: true });\nfs.writeFileSync(data.handoffPath, data.prdText, 'utf8');\n\nreturn [{\n  json: {\n    prd_text: data.prdText,\n    version: data.version,\n    project: data.project,\n    prd_path: data.prdPath,\n    handoff_path: data.handoffPath\n  }\n}];\n"
       }
     },
     {
@@ -834,7 +834,7 @@
           5984
         ],
         "parameters": {
-          "jsCode": "const fs = require('fs');\nconst data = $input.first().json;\n\nfs.mkdirSync(data.prdDir, { recursive: true });\nfs.writeFileSync(data.prdPath, data.prdText, 'utf8');\n\nreturn [{\n  json: {\n    prd_text: data.prdText,\n    version: data.version,\n    project: data.project,\n    prd_path: data.prdPath\n  }\n}];\n"
+          "jsCode": "const fs = require('fs');\nconst path = require('path');\nconst data = $input.first().json;\n\n// Write versioned PRD to tasks/\nfs.mkdirSync(data.prdDir, { recursive: true });\nfs.writeFileSync(data.prdPath, data.prdText, 'utf8');\n\n// Also write to handoffs/003-prd-refined.md\nconst handoffDir = path.dirname(data.handoffPath);\nfs.mkdirSync(handoffDir, { recursive: true });\nfs.writeFileSync(data.handoffPath, data.prdText, 'utf8');\n\nreturn [{\n  json: {\n    prd_text: data.prdText,\n    version: data.version,\n    project: data.project,\n    prd_path: data.prdPath,\n    handoff_path: data.handoffPath\n  }\n}];\n"
         }
       },
       {
