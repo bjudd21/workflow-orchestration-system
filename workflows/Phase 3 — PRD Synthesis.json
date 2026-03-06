@@ -1,0 +1,669 @@
+{
+  "name": "Phase 3 — PRD Synthesis",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "prd-synthesis",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c6d9fc65-c18a-42b6-90ff-5af49a61ebbc",
+      "name": "Webhook - Get Review UI",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "8a469b57-67db-42c8-97ad-8977471b47d7",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!DOCTYPE html>\n<html>\n<head>\n  <title>PRD Synthesis</title>\n  <meta charset=\"utf-8\">\n  <script src=\"https://cdn.jsdelivr.net/npm/marked/marked.min.js\"></script>\n  <style>\n    * { box-sizing: border-box; }\n    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 960px; margin: 0 auto; padding: 20px; background: #f5f5f5; }\n    h2 { color: #333; margin-bottom: 4px; }\n    .subtitle { color: #666; font-size: 14px; margin-bottom: 16px; }\n    .start-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }\n    .start-row label { font-size: 14px; font-weight: 600; white-space: nowrap; }\n    .start-row input { border: 1px solid #ccc; border-radius: 4px; padding: 6px 10px; font-size: 14px; width: 220px; }\n    button { padding: 8px 16px; border: none; border-radius: 6px; font-size: 14px; cursor: pointer; }\n    .btn-primary { background: #0071e3; color: white; }\n    .btn-primary:hover { background: #005bb5; }\n    .btn-success { background: #28a745; color: white; }\n    .btn-success:hover { background: #218838; }\n    .btn-warn { background: #fd7e14; color: white; }\n    .btn-warn:hover { background: #e06500; }\n    button:disabled { opacity: 0.5; cursor: not-allowed; }\n    #prd-area { background: white; border: 1px solid #ddd; border-radius: 8px; padding: 24px; min-height: 300px; margin: 12px 0; display: none; line-height: 1.6; }\n    #prd-area h1, #prd-area h2, #prd-area h3 { margin-top: 24px; }\n    #prd-area table { border-collapse: collapse; width: 100%; margin: 12px 0; }\n    #prd-area td, #prd-area th { border: 1px solid #ddd; padding: 6px 10px; font-size: 13px; text-align: left; }\n    #prd-area th { background: #f5f5f5; font-weight: 600; }\n    #prd-area pre { background: #f8f8f8; padding: 12px; border-radius: 4px; overflow-x: auto; }\n    #prd-area code { font-size: 13px; }\n    .controls { display: none; gap: 8px; align-items: flex-start; flex-wrap: wrap; margin-top: 4px; }\n    .controls.show { display: flex; }\n    .meta { font-size: 12px; color: #888; margin-bottom: 4px; display: none; }\n    #feedback-wrap { display: none; flex-direction: column; gap: 8px; width: 100%; margin-top: 4px; }\n    #feedback-wrap textarea { width: 100%; height: 80px; border: 1px solid #ccc; border-radius: 4px; padding: 8px; font-size: 14px; resize: vertical; }\n    #status { padding: 10px 14px; border-radius: 6px; margin: 8px 0; font-size: 14px; display: none; }\n    #status.info { background: #d1ecf1; color: #0c5460; }\n    #status.error { background: #f8d7da; color: #721c24; }\n    #status.ok { background: #d4edda; color: #155724; }\n    .spinner { display: inline-block; width: 13px; height: 13px; border: 2px solid #aaa; border-top-color: #333; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: middle; margin-right: 5px; }\n    @keyframes spin { to { transform: rotate(360deg); } }\n  </style>\n</head>\n<body>\n  <h2>PRD Synthesis</h2>\n  <p class=\"subtitle\">Synthesize a Product Requirements Document from the Phase 2 interview handoff.</p>\n  <div class=\"start-row\">\n    <label>Project:</label>\n    <input type=\"text\" id=\"project\" placeholder=\"my-project-name\" autocomplete=\"off\">\n    <button class=\"btn-primary\" id=\"btn-start\" onclick=\"startSynthesis()\">Synthesize PRD</button>\n  </div>\n  <div id=\"status\"></div>\n  <div class=\"meta\" id=\"meta\"></div>\n  <div id=\"prd-area\"></div>\n  <div class=\"controls\" id=\"controls\">\n    <button class=\"btn-success\" id=\"btn-approve\" onclick=\"approvePRD()\">&#10003; Approve PRD</button>\n    <button class=\"btn-warn\" id=\"btn-revise\" onclick=\"showRevise()\">Request Revision</button>\n    <div id=\"feedback-wrap\">\n      <textarea id=\"feedback\" placeholder=\"Describe what needs to change...\"></textarea>\n      <button class=\"btn-primary\" onclick=\"submitRevision()\">Submit Revision</button>\n    </div>\n  </div>\n  <script>\n    let ver = 0, proj = '';\n    function setStatus(msg, type) { const s=document.getElementById('status'); s.style.display='block'; s.className=type; s.innerHTML=msg; }\n    function setLoading(on) { ['btn-start','btn-approve','btn-revise'].forEach(id=>{ const el=document.getElementById(id); if(el) el.disabled=on; }); }\n    function showPRD(text, version, project) {\n      ver=version; proj=project;\n      document.getElementById('prd-area').style.display='block';\n      document.getElementById('prd-area').innerHTML=marked.parse(text);\n      document.getElementById('controls').className='controls show';\n      const m=document.getElementById('meta'); m.style.display='block'; m.textContent='Version v'+version+' — '+project;\n      document.getElementById('feedback-wrap').style.display='none';\n      document.getElementById('feedback').value='';\n    }\n    async function post(body) {\n      const res = await fetch('/webhook/prd-synthesis/synthesize', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});\n      return res.json();\n    }\n    async function startSynthesis() {\n      proj = document.getElementById('project').value.trim().toLowerCase().replace(/\\s+/g,'-');\n      if (!proj) { setStatus('Enter a project name.','error'); return; }\n      setStatus('<span class=\"spinner\"></span> Synthesizing PRD with quality model — this takes 2–4 minutes…','info');\n      setLoading(true);\n      try {\n        const d = await post({project:proj, action:'synthesize', current_version:0});\n        if (d.error) { setStatus('Error: '+d.error,'error'); return; }\n        showPRD(d.prd_text, d.version, d.project);\n        setStatus('PRD v'+d.version+' synthesized. Review then approve or request revisions.','ok');\n      } catch(e) { setStatus('Request failed: '+e.message,'error'); }\n      finally { setLoading(false); }\n    }\n    function showRevise() { document.getElementById('feedback-wrap').style.display='flex'; document.getElementById('feedback').focus(); }\n    async function submitRevision() {\n      const fb = document.getElementById('feedback').value.trim();\n      if (!fb) { setStatus('Enter revision feedback.','error'); return; }\n      setStatus('<span class=\"spinner\"></span> Revising PRD…','info');\n      setLoading(true);\n      try {\n        const d = await post({project:proj, action:'synthesize', feedback:fb, current_version:ver});\n        if (d.error) { setStatus('Error: '+d.error,'error'); return; }\n        showPRD(d.prd_text, d.version, d.project);\n        setStatus('PRD revised to v'+d.version+'. Review and approve or continue revising.','ok');\n      } catch(e) { setStatus('Request failed: '+e.message,'error'); }\n      finally { setLoading(false); }\n    }\n    async function approvePRD() {\n      setStatus('<span class=\"spinner\"></span> Validating and saving PRD…','info');\n      setLoading(true);\n      try {\n        const d = await post({project:proj, action:'approve', current_version:ver});\n        if (!d.valid) { setStatus('Validation failed:<br>• '+d.errors.join('<br>• '),'error'); return; }\n        setStatus('&#10003; PRD approved and saved!<br>Handoff: '+d.handoff_path+'<br>Ready for Phase 4 Council Review.','ok');\n        document.getElementById('controls').className='controls';\n      } catch(e) { setStatus('Request failed: '+e.message,'error'); }\n      finally { setLoading(false); }\n    }\n  </script>\n</body>\n</html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "15214811-cd62-41e2-a22b-558600592772",
+      "name": "Respond - Review UI",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        304,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "prd-synthesis-action",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a630a92f-733a-4cec-b6ff-0fd88298c20c",
+      "name": "Webhook - Synthesize",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        304
+      ],
+      "webhookId": "ee21f006-a253-47a4-bde4-648169512f09",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nconst project = (body.project || '').trim().toLowerCase().replace(/\\s+/g, '-');\nconst action = body.action || 'synthesize';\nconst feedback = body.feedback || '';\nconst currentVersion = parseInt(body.current_version) || 0;\n\nif (!project) throw new Error('project name is required');\nif (!['synthesize', 'approve'].includes(action)) throw new Error('action must be synthesize or approve');\n\nconst workspacePath = `/home/node/workspace/${project}`;\nconst version = action === 'approve' ? currentVersion : currentVersion + 1;\n\nreturn [{\n  json: {\n    project,\n    action,\n    feedback,\n    currentVersion,\n    version,\n    workspacePath,\n    interviewHandoff: `${workspacePath}/handoffs/002-prd-interview.md`,\n    analysisHandoff: `${workspacePath}/handoffs/001-analysis-complete.md`,\n    handoffPath: `${workspacePath}/handoffs/003-prd-refined.md`,\n    prdDir: `${workspacePath}/tasks`\n  }\n}];\n"
+      },
+      "id": "6dd55e01-759e-49b0-b247-4be4fa4ee240",
+      "name": "Code - Validate Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:11434/api/tags",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "eb4149da-a9d3-455d-9137-d63b6df5d606",
+      "name": "HTTP Request - Ollama Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        608,
+        304
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "reachable-check",
+              "leftValue": "={{ Array.isArray($json.models) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "924154ae-c697-47f1-b71c-ed9677cffce4",
+      "name": "IF - Ollama Reachable",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        912,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={\"error\": \"Ollama is not reachable at host.docker.internal:11434. Start Ollama and ensure it is running before using this workflow.\"}",
+        "options": {
+          "responseCode": 503,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "35e66694-def6-42ba-99cb-83c5331fd682",
+      "name": "Respond - Ollama Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "approve-check",
+              "leftValue": "={{ $('Code - Validate Inputs').first().json.action }}",
+              "rightValue": "approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f91df830-f1b8-40df-b728-f3b4e22abd09",
+      "name": "IF - Action Is Approve",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst data = $('Code - Validate Inputs').first().json;\nconst version = data.currentVersion;\nconst prdPath = `${data.prdDir}/prd-${data.project}-v${version}.md`;\n\nlet prd;\ntry {\n  prd = fs.readFileSync(prdPath, 'utf8');\n} catch(e) {\n  return [{ json: { valid: false, errors: [`PRD v${version} not found at ${prdPath}. Synthesize the PRD first.`], project: data.project, version } }];\n}\n\nconst errors = [];\n\n// Frontmatter\nconst fmMatch = prd.match(/^---\\n([\\s\\S]*?)\\n---/);\nif (!fmMatch) {\n  errors.push('Missing YAML frontmatter');\n} else {\n  const fm = fmMatch[1];\n  if (!/phase:\\s*prd-synthesis/.test(fm)) errors.push('frontmatter: phase must be prd-synthesis');\n  if (!/version:\\s*v\\d+/.test(fm)) errors.push('frontmatter: version missing or malformed (expected v1, v2, etc.)');\n  if (!/status:\\s/.test(fm)) errors.push('frontmatter: status field missing');\n}\n\n// Required sections (1-7 always) — accept # or ## headings\nconst sectionChecks = [\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Executive Summary/i, 'Section 1: Executive Summary'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Functional Requirements/i, 'Section 2: Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional Requirements/i, 'Section 3: Non-Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?User Stories/i, 'Section 4: User Stories'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Architecture/i, 'Section 5: Architecture Recommendations'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk/i, 'Section 6: Risk Assessment'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?MVP/i, 'Section 7: MVP vs. Future Phases'],\n];\nfor (const [pattern, name] of sectionChecks) {\n  if (!pattern.test(prd)) errors.push(`Missing ${name}`);\n}\n\n// FR count\nconst frCount = (prd.match(/\\*\\*FR-\\d+:/g) || []).length;\nif (frCount < 3) errors.push(`Fewer than 3 FRs (found ${frCount}) — need at least 3`);\n\n// NFR numeric target\nconst nfrSection = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional[\\s\\S]*?(?=\\n#{1,3}\\s)/i)?.[0] || '';\nif (nfrSection && !/ \\d+\\s*(?:ms|s|%|concurrent|users|GB|MB|KiB|year|hour)/.test(nfrSection)) {\n  errors.push('NFR section lacks numeric targets (e.g. < 200ms, 99.9%, 500 users)');\n}\n\n// User story count\nconst usCount = (prd.match(/\\*\\*US-\\d+:/g) || []).length;\nif (usCount < 3) errors.push(`Fewer than 3 user stories (found ${usCount}) — need at least 3`);\n\n// Risk rows\nconst riskSection = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk[\\s\\S]*?(?=\\n#{1,3}\\s|$)/i)?.[0] || '';\nconst riskRows = (riskSection.match(/\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|/g) || []).filter(r => !r.includes('---') && !/likelihood/i.test(r));\nif (riskRows.length < 2) errors.push(`Risk table has fewer than 2 risks (found ${riskRows.length})`);\n\n// Compliance section check\nif (fmMatch) {\n  const fm = fmMatch[1];\n  if (!/compliance:\\s*none/i.test(fm) && fm.includes('compliance:') && !/#{1,3}\\s+(?:\\d+\\.\\s+)?Compliance/i.test(prd)) {\n    errors.push('Section 8: Compliance Requirements required but missing (compliance != none in frontmatter)');\n  }\n}\n\nif (errors.length > 0) {\n  return [{ json: { valid: false, errors, project: data.project, version } }];\n}\n\n// Write handoff\nfs.mkdirSync(`${data.workspacePath}/handoffs`, { recursive: true });\nfs.writeFileSync(data.handoffPath, prd, 'utf8');\n\nreturn [{\n  json: {\n    valid: true,\n    errors: [],\n    project: data.project,\n    version,\n    handoff_path: data.handoffPath,\n    prd_path: prdPath\n  }\n}];\n"
+      },
+      "id": "47b78469-0030-4d20-b069-4cee105c1b26",
+      "name": "Code - Validate + Write Handoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1504,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "30ce3e51-2271-4a50-93bb-1ef38b55c730",
+      "name": "Respond - Approve Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1808,
+        32
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst data = $('Code - Validate Inputs').first().json;\n\n// Load interview handoff (required)\nlet interviewContent;\ntry {\n  interviewContent = fs.readFileSync(data.interviewHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`Interview handoff not found at ${data.interviewHandoff}. Run Phase 2 (PRD Interview) first.`);\n}\n\n// Load analysis handoff (optional — greenfield projects have none)\nlet analysisContent = null;\ntry { analysisContent = fs.readFileSync(data.analysisHandoff, 'utf8'); } catch(e) {}\n\n// Parse compliance flag from interview frontmatter\nconst fmMatch = interviewContent.match(/^---\\n([\\s\\S]*?)\\n---/);\nlet complianceApplicable = false;\nif (fmMatch) {\n  const fm = fmMatch[1];\n  complianceApplicable = /compliance_applicable:\\s*true/i.test(fm) ||\n    (/compliance:/i.test(fm) && !/compliance:\\s*none/i.test(fm) && !/compliance_applicable:\\s*false/i.test(fm));\n}\n\n// Load current PRD for revision pass\nlet currentPrd = null;\nif (data.currentVersion > 0) {\n  const curPath = `${data.prdDir}/prd-${data.project}-v${data.currentVersion}.md`;\n  try {\n    currentPrd = fs.readFileSync(curPath, 'utf8');\n  } catch(e) {\n    throw new Error(`Current PRD v${data.currentVersion} not found at ${curPath}`);\n  }\n}\n\nreturn [{\n  json: {\n    ...data,\n    interviewContent,\n    analysisContent,\n    complianceApplicable,\n    currentPrd\n  }\n}];\n"
+      },
+      "id": "340ed8bf-2a44-440c-a7fc-fcc2f43796db",
+      "name": "Code - Load Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1712,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst data = $input.first().json;\n\n// Load PRD writer system prompt (strip YAML frontmatter)\nlet writerPrompt = fs.readFileSync('/home/node/prompts/prd-development/prd-writer.md', 'utf8')\n  .replace(/^---[\\s\\S]*?---\\n/, '').trim();\n\n// Always inject requirements engineering skill\nlet skills = fs.readFileSync('/home/node/skills/prd/requirements-engineering.md', 'utf8');\n\n// Conditionally inject gov PRD skill when compliance applies\nif (data.complianceApplicable) {\n  skills += '\\n\\n---\\n\\n' + fs.readFileSync('/home/node/skills/prd/gov-prd-requirements.md', 'utf8');\n}\n\nreturn [{\n  json: {\n    ...data,\n    systemPrompt: writerPrompt + '\\n\\n---\\n\\n' + skills\n  }\n}];\n"
+      },
+      "id": "03904908-a157-4ced-ad42-6edb4f21d673",
+      "name": "Code - Read Prompts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst today = new Date().toISOString().split('T')[0];\n\nlet userMessage;\n\nif (data.currentVersion === 0) {\n  // Initial synthesis\n  userMessage = `Please synthesize a complete PRD from the following materials.\\n\\nToday's date: ${today}\\nProject name: ${data.project}\\n\\n## Interview Handoff\\n${data.interviewContent}${data.analysisContent ? '\\n\\n## Analysis Handoff\\n' + data.analysisContent : ''}\\n\\nProduce the full PRD with all required sections (1 through 7, plus section 8 only if compliance frameworks were identified). Begin with the YAML frontmatter block. Use version v1.`;\n} else {\n  // Revision pass\n  userMessage = `Please revise the PRD based on this feedback.\\n\\nFeedback from reviewer:\\n${data.feedback}\\n\\n## Current PRD (v${data.currentVersion})\\n${data.currentPrd}\\n\\nApply the feedback precisely — don't invent changes not requested. Increment the version to v${data.version}. Add a brief \"## Revision Notes (v${data.version})\" section immediately after the frontmatter listing what changed and why.`;\n}\n\nreturn [{\n  json: {\n    ...data,\n    messages: [\n      { role: 'system', content: data.systemPrompt },\n      { role: 'user', content: userMessage }\n    ],\n    model: 'qwen3.5:35b-a3b'\n  }\n}];\n"
+      },
+      "id": "7a269e70-59fd-4875-9053-d73f2231d766",
+      "name": "Code - Build Synthesis Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2320,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/chat",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: $json.model, messages: $json.messages, stream: false, think: false }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "f37e1310-40a9-4492-bcdd-301fcd73b579",
+      "name": "HTTP Request - Ollama Synthesis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        2608,
+        304
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "jsCode": "const ollamaResp = $input.first().json;\nconst buildData = $('Code - Build Synthesis Request').first().json;\n\nconst rawContent = ollamaResp.message?.content || ollamaResp.choices?.[0]?.message?.content || '';\nif (!rawContent) throw new Error('Empty response from Ollama — check model availability and retry');\n\nconst version = buildData.version;\nconst project = buildData.project;\nconst today = new Date().toISOString().split('T')[0];\n\n// Strip thinking block if present (model may emit thinking even with think:false)\nlet rawPrd = rawContent;\nconst thinkEnd = rawPrd.indexOf('</think>');\nif (thinkEnd !== -1) {\n  rawPrd = rawPrd.slice(thinkEnd + '</think>'.length).trim();\n}\n\n// Strip markdown code fence if model wrapped output in ```markdown\nrawPrd = rawPrd.replace(/^```(?:markdown)?\\n?/, '').replace(/\\n?```\\s*$/, '').trim();\n\nlet finalPrd = rawPrd;\n\n// Ensure PRD has required frontmatter\nif (!finalPrd.startsWith('---')) {\n  const frontmatter = `---\\nphase: prd-synthesis\\nproject: ${project}\\nversion: v${version}\\ndate: ${today}\\nstatus: Draft\\nentry_point: greenfield\\ncompliance: ${buildData.complianceApplicable ? 'applicable — see Section 8' : 'none'}\\nsource_interview: ${buildData.interviewHandoff}\\nsource_analysis: ${buildData.analysisContent ? buildData.analysisHandoff : 'none'}\\n---\\n\\n`;\n  finalPrd = frontmatter + finalPrd;\n} else {\n  // Update version and date in existing frontmatter\n  finalPrd = finalPrd.replace(/version:\\s*v\\d+/, `version: v${version}`);\n  finalPrd = finalPrd.replace(/date:\\s*\\S+/, `date: ${today}`);\n  if (!/phase:\\s*prd-synthesis/.test(finalPrd)) {\n    finalPrd = finalPrd.replace('---\\n', `---\\nphase: prd-synthesis\\n`);\n  }\n}\n\nreturn [{\n  json: {\n    ...buildData,\n    prdText: finalPrd,\n    prdPath: `${buildData.prdDir}/prd-${project}-v${version}.md`,\n    prdFilename: `prd-${project}-v${version}.md`\n  }\n}];\n"
+      },
+      "id": "1c3a43d6-2e99-4e6b-847c-766bd53ebda1",
+      "name": "Code - Process Synthesis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst path = require('path');\nconst data = $input.first().json;\n\n// Write versioned PRD to tasks/\nfs.mkdirSync(data.prdDir, { recursive: true });\nfs.writeFileSync(data.prdPath, data.prdText, 'utf8');\n\n// Also write to handoffs/003-prd-refined.md\nconst handoffDir = path.dirname(data.handoffPath);\nfs.mkdirSync(handoffDir, { recursive: true });\nfs.writeFileSync(data.handoffPath, data.prdText, 'utf8');\n\nreturn [{\n  json: {\n    prd_text: data.prdText,\n    version: data.version,\n    project: data.project,\n    prd_path: data.prdPath,\n    handoff_path: data.handoffPath\n  }\n}];\n"
+      },
+      "id": "435f6cd9-621c-4389-b1dc-a17adf60a948",
+      "name": "Code - Write Versioned PRD",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3424,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "aec94599-6476-45bd-8b26-7ecd353c9982",
+      "name": "Respond - Synthesis Complete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        4144,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5678/webhook/council-review-action",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "project",
+              "value": "={{ $('Code - Validate Inputs').first().json.project }}"
+            },
+            {
+              "name": "action",
+              "value": "review"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3840,
+        304
+      ],
+      "id": "619b088f-14df-4cdd-9f90-1580a2f06851",
+      "name": "Auto-Trigger Phase 4"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase3/progress",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "percent",
+              "value": "0"
+            },
+            {
+              "name": "message",
+              "value": "Starting PRD synthesis..."
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1408,
+        304
+      ],
+      "id": "f1803103-ef6f-4382-896f-59df650f0275",
+      "name": "HTTP Request\" to: Emit Progress 0%"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase3/progress",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "percent",
+              "value": "50"
+            },
+            {
+              "name": "message",
+              "value": "PRD synthesis complete, writing file..."
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2816,
+        304
+      ],
+      "id": "52779de4-3077-40ca-a94a-83b682c6ddca",
+      "name": "Emit Progress 50%"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase3/progress",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "percent",
+              "value": "100"
+            },
+            {
+              "name": "message",
+              "value": "PRD complete!"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        3632,
+        304
+      ],
+      "id": "8333380b-c452-48ef-86e5-2816c4da71e6",
+      "name": "Emit Progress 100%"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook - Get Review UI": {
+      "main": [
+        [
+          {
+            "node": "Respond - Review UI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Synthesize": {
+      "main": [
+        [
+          {
+            "node": "Code - Validate Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Validate Inputs": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Ollama Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Ollama Health": {
+      "main": [
+        [
+          {
+            "node": "IF - Ollama Reachable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Ollama Reachable": {
+      "main": [
+        [
+          {
+            "node": "IF - Action Is Approve",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Ollama Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Action Is Approve": {
+      "main": [
+        [
+          {
+            "node": "Code - Validate + Write Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request\" to: Emit Progress 0%",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Validate + Write Handoff": {
+      "main": [
+        [
+          {
+            "node": "Respond - Approve Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Load Context": {
+      "main": [
+        [
+          {
+            "node": "Code - Read Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Read Prompts": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Synthesis Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build Synthesis Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request - Ollama Synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request - Ollama Synthesis": {
+      "main": [
+        [
+          {
+            "node": "Emit Progress 50%",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Process Synthesis": {
+      "main": [
+        [
+          {
+            "node": "Code - Write Versioned PRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Write Versioned PRD": {
+      "main": [
+        [
+          {
+            "node": "Emit Progress 100%",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-Trigger Phase 4": {
+      "main": [
+        [
+          {
+            "node": "Respond - Synthesis Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request\" to: Emit Progress 0%": {
+      "main": [
+        [
+          {
+            "node": "Code - Load Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emit Progress 50%": {
+      "main": [
+        [
+          {
+            "node": "Code - Process Synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emit Progress 100%": {
+      "main": [
+        [
+          {
+            "node": "Auto-Trigger Phase 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "1a4a7fee-c7bd-4ecc-a697-f9a83d1ee996",
+  "meta": {
+    "instanceId": "0a0e76c7322d1d0e50ca4077eff90f037ced4ed6c5c5b5717d8fd34da496440c"
+  },
+  "id": "TjpEknImWX7jTpIi",
+  "tags": []
+}
