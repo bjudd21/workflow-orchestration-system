@@ -254,8 +254,9 @@
     .connection-status.disconnected { background: #f8d7da; color: #721c24; }
     .connection-status.reconnecting { background: #fff3cd; color: #856404; }
 
-    /* Hide phases by default */
-    [x-show] { display: none; }
+    /* Alpine.js handles visibility with x-show, no CSS override needed */
+    /* x-cloak hides content until Alpine.js fully initializes */
+    [x-cloak] { display: none !important; }
 
     /* Responsive */
     @media (max-width: 768px) {
@@ -264,7 +265,7 @@
     }
   </style>
 </head>
-<body x-data="pipelineState()">
+<body x-data="pipelineState()" x-cloak>
 
   <!-- Connection Status Indicator -->
   <div class="connection-status"
