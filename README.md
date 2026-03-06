@@ -10,11 +10,17 @@ A phase-based, multi-agent workflow that transforms a project idea into a counci
 
 ```
 Phase 2: PRD Interview      → Conversational requirements gathering (webhook chat UI)
+         ↓ (auto-chains)
 Phase 3: PRD Synthesis      → Quality model synthesizes a full PRD from the interview
+         ↓ (auto-chains)
 Phase 4: Council Review     → 4 specialist agents review; chair synthesizes findings
+         ↓
 Phase 5: Task Generation    → PRD → structured task list + GitHub Issues
+         ↓
 Phase 6: Execution Tracking → Claude Code picks up tasks; PR review automation
 ```
+
+**Auto-chaining**: Phase 2 automatically triggers Phase 3, which automatically triggers Phase 4. Real-time progress updates stream via Server-Sent Events (SSE) to connected clients.
 
 Phases hand off via validated markdown artifacts stored in `workspace/{project}/handoffs/`.
 
@@ -30,6 +36,7 @@ Phases hand off via validated markdown artifacts stored in `workspace/{project}/
 docker compose up -d
 
 # Access n8n at http://localhost:5678
+# SSE service (real-time updates) at http://localhost:3001
 ```
 
 ### Prerequisites
@@ -60,7 +67,7 @@ To restart or reset an interview, delete `workspace/{project-name}/interview-sta
 
 ## Phase 3: PRD Synthesis
 
-Phase 3 takes the interview handoff and synthesizes a complete PRD. It runs automatically after Phase 2 completes, or can be triggered manually via webhook.
+Phase 3 takes the interview handoff and synthesizes a complete PRD. **It automatically triggers when Phase 2 completes** (or can be triggered manually via webhook).
 
 **Input**: `workspace/{project}/handoffs/002-prd-interview.md`
 **Output**: `workspace/{project}/handoffs/003-prd-refined.md`
@@ -74,11 +81,13 @@ The synthesis uses the quality model to produce a structured PRD with:
 - Risk Assessment
 - MVP Definition
 
+**Real-time updates**: Progress events (0%, 50%, 100%) stream via SSE to `http://localhost:3001/events/{project-id}/phase3/progress`
+
 ---
 
 ## Phase 4: Council Review
 
-Phase 4 runs a 5-agent council review of the synthesized PRD:
+Phase 4 runs a 5-agent council review of the synthesized PRD. **It automatically triggers when Phase 3 completes** (or can be triggered manually via webhook).
 
 **4 Core Reviewers** (run in parallel):
 1. **Technical Reviewer** — Challenges technical feasibility and architecture
@@ -88,7 +97,7 @@ Phase 4 runs a 5-agent council review of the synthesized PRD:
 
 **Council Chair** — Synthesizes all reviewer feedback into consensus points, conflicts, and a unified verdict.
 
-**Trigger via webhook**:
+**Trigger via webhook** (manual):
 ```bash
 curl -X POST http://localhost:5678/webhook/council-review-action \
   -H "Content-Type: application/json" \
@@ -102,6 +111,8 @@ curl -X POST http://localhost:5678/webhook/council-review-action \
 - Required revisions (if any)
 
 **Execution time**: ~2 minutes (5 LLM calls with single model)
+
+**Real-time updates**: Each reviewer completion streams via SSE to `http://localhost:3001/events/{project-id}/phase4/reviewer` and `phase4/complete`
 
 ---
 
@@ -134,6 +145,8 @@ prompts/            ← Agent system prompts, organized by phase
   task-execution/   ← implementation and code review agents
 skills/             ← Skill context documents paired with agents
 contracts/          ← Handoff validation schemas (markdown)
+services/           ← Supporting services
+  sse-broadcast/    ← Server-Sent Events broadcast service (Express.js)
 workspace/          ← Runtime project workspaces (gitignored)
   {project-name}/
     handoffs/       ← Phase output artifacts (002-prd-interview.md, etc.)
@@ -155,7 +168,9 @@ workspace/          ← Runtime project workspaces (gitignored)
 | 4.0 Phase 2: PRD Interview workflow | ✅ Complete — live and tested |
 | 5.0 Phase 3: PRD Synthesis workflow | ✅ Complete — live and tested |
 | 6.0 Phase 4: Council Review workflow | ✅ Complete — live and tested (5 reviewers) |
-| 7.0 True MVP integration test | 🔨 Next |
+| 7.0 SSE real-time event broadcasting | ✅ Complete — Phase 3 & 4 events |
+| 8.0 Auto-chaining (Phase 2→3→4) | ✅ Complete — tested end-to-end |
+| 9.0 Enhanced Frontend UI (HTMX + Alpine) | 🔨 Next |
 
 ---
 
@@ -166,6 +181,8 @@ workspace/          ← Runtime project workspaces (gitignored)
 - **Single model for MVP**: Using qwen3.5:35b-a3b for all LLM calls to avoid GPU memory issues. Model swapping deferred to Full MVP.
 - **State persistence**: Conversation state is stored as JSON in `workspace/{project}/interview-state.json`. Restarting n8n or Docker does not lose state.
 - **Handoff validation**: Each phase validates its output against schemas in `contracts/` before writing the handoff file.
+- **Auto-chaining**: Phase 2 automatically POSTs to Phase 3 webhook on completion; Phase 3 automatically POSTs to Phase 4 webhook after writing the handoff file. No manual triggering required.
+- **Real-time updates**: SSE broadcast service (Express.js on port 3001) receives events from n8n workflows via HTTP POST and streams them to connected browsers. Supports reconnection with `Last-Event-ID` for missed events.
 
 ---
 
