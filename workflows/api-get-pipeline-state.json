@@ -1,0 +1,67 @@
+{
+  "name": "API - Get Pipeline State",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "api/pipeline-state/:project",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-get-state",
+      "name": "Webhook - Get State",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [460, 240],
+      "webhookId": "api-pipeline-state-get"
+    },
+    {
+      "parameters": {
+        "jsCode": "const project = $input.first().json.params.project;\nconst fs = require('fs');\nconst path = require('path');\n\nconst statePath = `/home/node/workspace/${project}/pipeline-state.json`;\n\nif (!fs.existsSync(statePath)) {\n  return [{\n    json: {\n      exists: false,\n      project\n    }\n  }];\n}\n\nconst state = JSON.parse(fs.readFileSync(statePath, 'utf8'));\n\nreturn [{\n  json: {\n    exists: true,\n    state\n  }\n}];"
+      },
+      "id": "code-read-state",
+      "name": "Code - Read State",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 240]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-state",
+      "name": "Respond - State",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 240]
+    }
+  ],
+  "connections": {
+    "Webhook - Get State": {
+      "main": [[{"node": "Code - Read State", "type": "main", "index": 0}]]
+    },
+    "Code - Read State": {
+      "main": [[{"node": "Respond - State", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-03-06T00:00:00.000Z",
+  "versionId": "1"
+}

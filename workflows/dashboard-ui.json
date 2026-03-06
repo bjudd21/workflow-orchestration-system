@@ -1,0 +1,105 @@
+{
+  "name": "Dashboard UI",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "dashboard",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-dashboard",
+      "name": "Webhook - Dashboard GET",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [460, 240],
+      "webhookId": "dashboard-ui-get"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=FILE_CONTENT_PLACEHOLDER",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-dashboard-html",
+      "name": "Respond - Dashboard HTML",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 240]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "api/dashboard/projects",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-list-projects",
+      "name": "Webhook - List Projects",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [460, 440],
+      "webhookId": "dashboard-list-projects"
+    },
+    {
+      "parameters": {
+        "jsCode": "const stateLib = require('/home/node/scripts/pipeline-state.js');\nconst projects = stateLib.listProjects();\n\nreturn [{\n  json: {\n    projects,\n    count: projects.length,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "code-list-projects",
+      "name": "Code - List Projects",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 440]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "respond-projects-json",
+      "name": "Respond - Projects JSON",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 440]
+    }
+  ],
+  "connections": {
+    "Webhook - Dashboard GET": {
+      "main": [[{"node": "Respond - Dashboard HTML", "type": "main", "index": 0}]]
+    },
+    "Webhook - List Projects": {
+      "main": [[{"node": "Code - List Projects", "type": "main", "index": 0}]]
+    },
+    "Code - List Projects": {
+      "main": [[{"node": "Respond - Projects JSON", "type": "main", "index": 0}]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-03-06T00:00:00.000Z",
+  "versionId": "1"
+}
