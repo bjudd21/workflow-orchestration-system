@@ -12,13 +12,16 @@
       "name": "Webhook - Dashboard GET",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [460, 240],
+      "position": [
+        460,
+        240
+      ],
       "webhookId": "dashboard-ui-get"
     },
     {
       "parameters": {
         "respondWith": "text",
-        "responseBody": "=FILE_CONTENT_PLACEHOLDER",
+        "responseBody": "<!DOCTYPE html>\n<html>\n<head>\n  <title>PRD Workflow Dashboard</title>\n  <meta charset=\"utf-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n  <script src=\"https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js\" defer></script>\n  <style>\n    * { box-sizing: border-box; }\n    body {\n      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;\n      max-width: 1200px;\n      margin: 0 auto;\n      padding: 20px;\n      background: #f5f5f5;\n    }\n    h1 { color: #333; margin-bottom: 8px; }\n    .subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }\n\n    .header-actions {\n      display: flex;\n      justify-content: space-between;\n      align-items: center;\n      margin-bottom: 24px;\n    }\n\n    .btn {\n      background: #0071e3;\n      color: white;\n      border: none;\n      border-radius: 8px;\n      padding: 10px 20px;\n      font-size: 14px;\n      font-weight: 600;\n      cursor: pointer;\n      text-decoration: none;\n      display: inline-block;\n    }\n    .btn:hover { background: #005bbf; }\n    .btn-success { background: #34c759; }\n    .btn-success:hover { background: #30b350; }\n\n    .projects-table {\n      background: white;\n      border-radius: 8px;\n      border: 1px solid #ddd;\n      overflow: hidden;\n    }\n\n    table {\n      width: 100%;\n      border-collapse: collapse;\n    }\n\n    thead {\n      background: #f9f9f9;\n      border-bottom: 2px solid #ddd;\n    }\n\n    th {\n      padding: 12px 16px;\n      text-align: left;\n      font-size: 13px;\n      font-weight: 600;\n      color: #666;\n      text-transform: uppercase;\n      letter-spacing: 0.5px;\n    }\n\n    td {\n      padding: 14px 16px;\n      border-bottom: 1px solid #f0f0f0;\n      font-size: 14px;\n    }\n\n    tr:last-child td {\n      border-bottom: none;\n    }\n\n    tbody tr:hover {\n      background: #fafafa;\n    }\n\n    .project-name {\n      font-weight: 600;\n      color: #0071e3;\n      cursor: pointer;\n    }\n    .project-name:hover {\n      text-decoration: underline;\n    }\n\n    .status-badge {\n      display: inline-block;\n      padding: 4px 10px;\n      border-radius: 12px;\n      font-size: 12px;\n      font-weight: 600;\n    }\n\n    .status-pending { background: #e0e0e0; color: #666; }\n    .status-in_progress { background: #fff3cd; color: #856404; }\n    .status-completed { background: #d4edda; color: #155724; }\n    .status-failed { background: #f8d7da; color: #721c24; }\n\n    .phase-indicator {\n      display: flex;\n      gap: 4px;\n      align-items: center;\n    }\n\n    .phase-dot {\n      width: 8px;\n      height: 8px;\n      border-radius: 50%;\n      background: #e0e0e0;\n    }\n    .phase-dot.active { background: #0071e3; }\n    .phase-dot.complete { background: #34c759; }\n\n    .timestamp {\n      color: #888;\n      font-size: 13px;\n    }\n\n    .actions {\n      display: flex;\n      gap: 8px;\n    }\n\n    .action-btn {\n      padding: 6px 12px;\n      border: 1px solid #ddd;\n      border-radius: 6px;\n      background: white;\n      font-size: 12px;\n      cursor: pointer;\n      color: #666;\n    }\n    .action-btn:hover {\n      background: #f5f5f5;\n      color: #333;\n    }\n\n    .empty-state {\n      text-align: center;\n      padding: 60px 20px;\n      color: #888;\n    }\n    .empty-state h2 {\n      margin-bottom: 12px;\n      color: #666;\n    }\n\n    @media (max-width: 768px) {\n      table { font-size: 12px; }\n      th, td { padding: 10px 12px; }\n      .actions { flex-direction: column; }\n    }\n  </style>\n</head>\n<body x-data=\"dashboardState()\" x-cloak>\n\n  <div class=\"header-actions\">\n    <div>\n      <h1>PRD Workflow Dashboard</h1>\n      <div class=\"subtitle\">\n        <span x-text=\"projects.length\"></span> project(s) •\n        Last updated: <span x-text=\"formatTime(lastUpdate)\"></span>\n      </div>\n    </div>\n    <a href=\"/webhook/prd-interview\" class=\"btn btn-success\">\n      + New Project\n    </a>\n  </div>\n\n  <div x-show=\"loading\" class=\"projects-table\" style=\"padding: 40px; text-align: center;\">\n    <p>Loading projects...</p>\n  </div>\n\n  <div x-show=\"!loading && projects.length === 0\" class=\"empty-state\">\n    <h2>No projects yet</h2>\n    <p>Start your first PRD workflow interview</p>\n    <a href=\"/webhook/prd-interview\" class=\"btn btn-success\" style=\"margin-top: 16px;\">\n      + New Project\n    </a>\n  </div>\n\n  <div x-show=\"!loading && projects.length > 0\" class=\"projects-table\">\n    <table>\n      <thead>\n        <tr>\n          <th>Project</th>\n          <th>Phases</th>\n          <th>Current Phase</th>\n          <th>Status</th>\n          <th>Last Updated</th>\n          <th>Actions</th>\n        </tr>\n      </thead>\n      <tbody>\n        <template x-for=\"project in projects\" :key=\"project.project\">\n          <tr>\n            <td>\n              <a :href=\"`/webhook/prd-interview?project=${project.project}`\" class=\"project-name\" x-text=\"project.project\"></a>\n            </td>\n            <td>\n              <div class=\"phase-indicator\">\n                <div class=\"phase-dot\" :class=\"getPhaseClass(project, 'interview')\" title=\"Interview\"></div>\n                <div class=\"phase-dot\" :class=\"getPhaseClass(project, 'synthesis')\" title=\"Synthesis\"></div>\n                <div class=\"phase-dot\" :class=\"getPhaseClass(project, 'council')\" title=\"Council\"></div>\n                <div class=\"phase-dot\" :class=\"getPhaseClass(project, 'findings')\" title=\"Findings\"></div>\n              </div>\n            </td>\n            <td x-text=\"formatPhase(project.currentPhase)\"></td>\n            <td>\n              <span class=\"status-badge\" :class=\"`status-${getCurrentStatus(project)}`\" x-text=\"formatStatus(getCurrentStatus(project))\"></span>\n            </td>\n            <td class=\"timestamp\" x-text=\"formatTimestamp(project.lastUpdated)\"></td>\n            <td>\n              <div class=\"actions\">\n                <button class=\"action-btn\" @click=\"resumeProject(project.project)\">\n                  ↗️ Resume\n                </button>\n                <button class=\"action-btn\" @click=\"viewPRD(project.project)\" x-show=\"project.phases.synthesis?.status === 'completed'\">\n                  📄 View PRD\n                </button>\n              </div>\n            </td>\n          </tr>\n        </template>\n      </tbody>\n    </table>\n  </div>\n\n  <script>\n    function dashboardState() {\n      return {\n        projects: [],\n        loading: true,\n        lastUpdate: new Date(),\n\n        async init() {\n          await this.loadProjects();\n          setInterval(() => this.loadProjects(), 10000); // Refresh every 10s\n        },\n\n        async loadProjects() {\n          try {\n            const response = await fetch('/webhook/api/dashboard/projects');\n            const data = await response.json();\n            this.projects = data.projects || [];\n            this.lastUpdate = new Date();\n          } catch (err) {\n            console.error('Error loading projects:', err);\n          } finally {\n            this.loading = false;\n          }\n        },\n\n        getPhaseClass(project, phaseName) {\n          const phase = project.phases[phaseName];\n          if (!phase) return '';\n          if (phase.status === 'completed') return 'complete';\n          if (phase.status === 'in_progress') return 'active';\n          return '';\n        },\n\n        getCurrentStatus(project) {\n          const currentPhase = project.phases[project.currentPhase];\n          return currentPhase?.status || 'pending';\n        },\n\n        formatPhase(phase) {\n          const names = {\n            interview: 'Interview',\n            synthesis: 'PRD Synthesis',\n            council: 'Council Review',\n            findings: 'Findings'\n          };\n          return names[phase] || phase;\n        },\n\n        formatStatus(status) {\n          const names = {\n            pending: 'Pending',\n            in_progress: 'In Progress',\n            completed: 'Completed',\n            failed: 'Failed'\n          };\n          return names[status] || status;\n        },\n\n        formatTimestamp(timestamp) {\n          const date = new Date(timestamp);\n          const now = new Date();\n          const diff = now - date;\n\n          // Less than 1 minute\n          if (diff < 60000) return 'Just now';\n\n          // Less than 1 hour\n          if (diff < 3600000) {\n            const mins = Math.floor(diff / 60000);\n            return `${mins} minute${mins > 1 ? 's' : ''} ago`;\n          }\n\n          // Less than 24 hours\n          if (diff < 86400000) {\n            const hours = Math.floor(diff / 3600000);\n            return `${hours} hour${hours > 1 ? 's' : ''} ago`;\n          }\n\n          // Show date\n          return date.toLocaleDateString();\n        },\n\n        formatTime(date) {\n          return date.toLocaleTimeString();\n        },\n\n        resumeProject(projectName) {\n          window.location.href = `/webhook/prd-interview?project=${projectName}`;\n        },\n\n        viewPRD(projectName) {\n          window.location.href = `/webhook/prd-synthesis?project=${projectName}`;\n        }\n      };\n    }\n  </script>\n</body>\n</html>\n",
         "options": {
           "responseHeaders": {
             "entries": [
@@ -34,7 +37,10 @@
       "name": "Respond - Dashboard HTML",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [680, 240]
+      "position": [
+        680,
+        240
+      ]
     },
     {
       "parameters": {
@@ -47,7 +53,10 @@
       "name": "Webhook - List Projects",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [460, 440],
+      "position": [
+        460,
+        440
+      ],
       "webhookId": "dashboard-list-projects"
     },
     {
@@ -58,7 +67,10 @@
       "name": "Code - List Projects",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [680, 440]
+      "position": [
+        680,
+        440
+      ]
     },
     {
       "parameters": {
@@ -79,18 +91,45 @@
       "name": "Respond - Projects JSON",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
-      "position": [900, 440]
+      "position": [
+        900,
+        440
+      ]
     }
   ],
   "connections": {
     "Webhook - Dashboard GET": {
-      "main": [[{"node": "Respond - Dashboard HTML", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond - Dashboard HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook - List Projects": {
-      "main": [[{"node": "Code - List Projects", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Code - List Projects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Code - List Projects": {
-      "main": [[{"node": "Respond - Projects JSON", "type": "main", "index": 0}]]
+      "main": [
+        [
+          {
+            "node": "Respond - Projects JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "pinData": {},
