@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PRD Interview</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
+  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h2 { color: #333; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 16px; }
+    .project-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .project-row label { font-size: 14px; font-weight: 600; }
+    .project-row input {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 14px;
+      width: 200px;
+    }
+
+    /* Phase Container */
+    .phase-container {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    /* Interview Chat UI */
+    #messages {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+      height: 420px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+    .msg { margin-bottom: 12px; }
+    .user-msg { text-align: right; }
+    .user-msg .bubble {
+      display: inline-block;
+      background: #0071e3;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 16px 16px 4px 16px;
+      max-width: 85%;
+      font-size: 14px;
+    }
+    .agent-msg .bubble {
+      display: inline-block;
+      background: #f0f0f0;
+      color: #222;
+      padding: 10px 14px;
+      border-radius: 4px 16px 16px 16px;
+      max-width: 90%;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .agent-label {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 3px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .complete-banner {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+    .error-banner {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+    .input-row { display: flex; gap: 8px; }
+    #message-input {
+      flex: 1;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      padding: 10px 16px;
+      font-size: 14px;
+      outline: none;
+    }
+    #message-input:focus { border-color: #0071e3; }
+    .thinking { color: #888; font-style: italic; font-size: 13px; }
+
+    /* Progress Bar Component */
+    .progress-container { text-align: center; }
+    .progress-label {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #333;
+    }
+    .progress-bar-bg {
+      width: 100%;
+      height: 24px;
+      background: #e0e0e0;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #34c759 0%, #30d158 100%);
+      transition: width 0.5s ease;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+      color: white;
+      font-weight: 600;
+      font-size: 12px;
+    }
+    .progress-message {
+      font-size: 13px;
+      color: #666;
+      font-style: italic;
+    }
+
+    /* Council Stream Component */
+    .council-stream {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .council-review {
+      border-left: 3px solid #0071e3;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      background: #f9f9f9;
+      border-radius: 4px;
+      animation: fadeIn 0.5s ease;
+    }
+    .council-review.pending {
+      border-left-color: #ffa500;
+      background: #fff8e1;
+    }
+    .council-review-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .reviewer-name {
+      font-weight: 600;
+      font-size: 15px;
+      color: #333;
+    }
+    .reviewer-verdict {
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .reviewer-verdict.APPROVE { background: #d4edda; color: #155724; }
+    .reviewer-verdict.CONCERNS { background: #fff3cd; color: #856404; }
+    .reviewer-verdict.REJECT { background: #f8d7da; color: #721c24; }
+    .review-content {
+      font-size: 14px;
+      color: #555;
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Findings Component */
+    .findings-verdict {
+      text-align: center;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+    .findings-verdict.APPROVED { background: #d4edda; color: #155724; }
+    .findings-verdict.CONCERNS { background: #fff3cd; color: #856404; }
+    .findings-verdict.REVISE { background: #f8d7da; color: #721c24; }
+    .findings-verdict h3 { margin: 0 0 8px 0; font-size: 20px; }
+    .findings-verdict p { margin: 0; font-size: 14px; }
+    .findings-summary {
+      background: #f9f9f9;
+      padding: 16px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Buttons */
+    button, .btn {
+      background: #0071e3;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s;
+    }
+    button:hover, .btn:hover { background: #005bbf; }
+    button:disabled, .btn:disabled { background: #aaa; cursor: default; }
+    .btn-success { background: #34c759; }
+    .btn-success:hover { background: #30b350; }
+    .btn-danger { background: #ff3b30; }
+    .btn-danger:hover { background: #e02020; }
+    .btn-warning { background: #ff9500; }
+    .btn-warning:hover { background: #e08000; }
+    .btn-secondary { background: #8e8e93; }
+    .btn-secondary:hover { background: #6e6e73; }
+
+    /* Connection Status */
+    .connection-status {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .connection-status.connected { background: #d4edda; color: #155724; }
+    .connection-status.disconnected { background: #f8d7da; color: #721c24; }
+    .connection-status.reconnecting { background: #fff3cd; color: #856404; }
+
+    /* Hide phases by default */
+    [x-show] { display: none; }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .action-buttons { grid-template-columns: 1fr; }
+      body { padding: 12px; }
+    }
+  </style>
+</head>
+<body x-data="pipelineState()">
+
+  <!-- Connection Status Indicator -->
+  <div class="connection-status"
+       :class="connectionStatus"
+       x-show="currentPhase !== 'interview'"
+       x-text="connectionStatus === 'connected' ? '🟢 Live' :
+               connectionStatus === 'reconnecting' ? '🟡 Reconnecting...' :
+               '🔴 Disconnected'">
+  </div>
+
+  <h2>PRD Workflow Pipeline</h2>
+  <p class="subtitle">Interactive requirements gathering → PRD synthesis → council review</p>
+
+  <div class="project-row">
+    <label for="project">Project:</label>
+    <input id="project" type="text" placeholder="my-project" x-model="projectName">
+  </div>
+
+  <!-- Phase 1: Interview -->
+  <div x-show="currentPhase === 'interview'" class="phase-container">
+    <div id="messages"></div>
+    <div class="input-row">
+      <input id="message-input" type="text" placeholder="Type your response..." x-ref="messageInput">
+      <button id="send-btn" @click="sendMessage()" :disabled="interviewComplete">Send</button>
+    </div>
+  </div>
+
+  <!-- Phase 2: Progress Bar (PRD Synthesis) -->
+  <div x-show="currentPhase === 'synthesis'" class="phase-container">
+    <div class="progress-container">
+      <div class="progress-label">Phase 3: PRD Synthesis</div>
+      <div class="progress-bar-bg">
+        <div class="progress-bar-fill" :style="`width: ${progressPercent}%`">
+          <span x-text="progressPercent + '%'"></span>
+        </div>
+      </div>
+      <div class="progress-message" x-text="progressMessage"></div>
+    </div>
+  </div>
+
+  <!-- Phase 3: Council Review Stream -->
+  <div x-show="currentPhase === 'council'" class="phase-container">
+    <h3 style="margin-top: 0;">Phase 4: Council Review</h3>
+    <div class="council-stream">
+      <template x-for="review in councilReviews" :key="review.name">
+        <div class="council-review" :class="{ 'pending': review.pending }">
+          <div class="council-review-header">
+            <div class="reviewer-name" x-text="review.name"></div>
+            <div class="reviewer-verdict"
+                 :class="review.verdict"
+                 x-show="!review.pending"
+                 x-text="review.verdict">
+            </div>
+          </div>
+          <div class="review-content" x-text="review.content"></div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Phase 4: Findings & Actions -->
+  <div x-show="currentPhase === 'findings'" class="phase-container">
+    <div class="findings-verdict"
+         :class="findings.verdict === 'APPROVED' ? 'APPROVED' :
+                 findings.verdict === 'APPROVED WITH CONCERNS' ? 'CONCERNS' :
+                 'REVISE'">
+      <h3 x-text="findings.verdict"></h3>
+      <p>
+        <span x-text="findings.concerns"></span> concern(s) raised •
+        <span x-text="findings.endorsements"></span> endorsement(s)
+      </p>
+    </div>
+
+    <div class="findings-summary" x-text="findings.summary"></div>
+
+    <div class="action-buttons">
+      <button class="btn btn-success" @click="approveAndProceed()">
+        ✓ Approve & Proceed
+      </button>
+      <button class="btn btn-danger" @click="rejectPRD()">
+        ✗ Reject PRD
+      </button>
+      <button class="btn btn-warning" @click="revisePRD()">
+        ↻ Request Revision
+      </button>
+      <button class="btn btn-secondary" @click="generateTasksAnyway()">
+        → Generate Tasks Anyway
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function pipelineState() {
+      return {
+        // State
+        currentPhase: 'interview', // interview | synthesis | council | findings
+        projectName: '',
+        interviewComplete: false,
+        progressPercent: 0,
+        progressMessage: 'Waiting...',
+        councilReviews: [],
+        findings: {
+          verdict: '',
+          concerns: 0,
+          endorsements: 0,
+          summary: ''
+        },
+        connectionStatus: 'disconnected', // connected | disconnected | reconnecting
+        eventSource: null,
+
+        // Initialize
+        init() {
+          // Set default project name
+          const urlParams = new URLSearchParams(window.location.search);
+          const urlProject = urlParams.get('project');
+          if (urlProject) {
+            this.projectName = urlProject;
+          } else {
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 10);
+            const timeStr = now.toTimeString().slice(0, 5).replace(':', '');
+            this.projectName = `project-${dateStr}-${timeStr}`;
+          }
+
+          // Start interview
+          this.startInterview();
+        },
+
+        // Interview Methods
+        async startInterview() {
+          try {
+            const r = await fetch('/webhook/prd-interview-send', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({
+                project: this.projectName,
+                message: '__START__'
+              })
+            });
+            const d = await r.json();
+            if (!d.error) this.addMsg(d.response, 'agent');
+          } catch(e) {
+            this.addMsg('Failed to start interview: ' + e.message, 'agent');
+          }
+        },
+
+        async sendMessage() {
+          if (this.interviewComplete) return;
+
+          const inp = this.$refs.messageInput;
+          const msg = inp.value.trim();
+          if (!msg) return;
+
+          this.addMsg(msg, 'user');
+          inp.value = '';
+
+          const thinking = document.createElement('div');
+          thinking.className = 'msg agent-msg';
+          thinking.innerHTML = '<div class="bubble thinking">Thinking...</div>';
+          document.getElementById('messages').appendChild(thinking);
+
+          try {
+            const r = await fetch('/webhook/prd-interview-send', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({
+                project: this.projectName,
+                message: msg
+              })
+            });
+            const d = await r.json();
+            thinking.remove();
+
+            if (d.error) {
+              const e = document.createElement('div');
+              e.className = 'error-banner';
+              e.textContent = 'Error: ' + d.error;
+              document.getElementById('messages').appendChild(e);
+            } else {
+              this.addMsg(d.response, 'agent');
+
+              if (d.complete) {
+                this.interviewComplete = true;
+                const banner = document.createElement('div');
+                banner.className = 'complete-banner';
+                banner.textContent = 'Interview complete! Transitioning to PRD synthesis...';
+                document.getElementById('messages').appendChild(banner);
+
+                // Transition to synthesis phase after 2 seconds
+                setTimeout(() => {
+                  this.currentPhase = 'synthesis';
+                  this.connectSSE();
+                }, 2000);
+              } else {
+                inp.focus();
+              }
+            }
+          } catch(e) {
+            thinking.remove();
+            this.addMsg('Network error: ' + e.message, 'agent');
+          }
+        },
+
+        addMsg(text, who) {
+          const box = document.getElementById('messages');
+          const wrap = document.createElement('div');
+          wrap.className = 'msg ' + (who === 'user' ? 'user-msg' : 'agent-msg');
+          if (who === 'agent') {
+            const lbl = document.createElement('div');
+            lbl.className = 'agent-label';
+            lbl.textContent = 'PRD Interviewer';
+            wrap.appendChild(lbl);
+          }
+          const b = document.createElement('div');
+          b.className = 'bubble';
+          b.textContent = text;
+          wrap.appendChild(b);
+          box.appendChild(wrap);
+          box.scrollTop = box.scrollHeight;
+        },
+
+        // SSE Connection
+        connectSSE() {
+          if (this.eventSource) return; // Already connected
+
+          this.connectionStatus = 'reconnecting';
+          this.eventSource = new EventSource(`http://localhost:3001/events/${this.projectName}`);
+
+          this.eventSource.addEventListener('connected', (e) => {
+            console.log('SSE connected:', e.data);
+            this.connectionStatus = 'connected';
+          });
+
+          this.eventSource.addEventListener('phase3.progress', (e) => {
+            const data = JSON.parse(e.data);
+            this.progressPercent = parseInt(data.percent);
+            this.progressMessage = data.message;
+
+            // Transition to council when synthesis complete
+            if (this.progressPercent === 100) {
+              setTimeout(() => {
+                this.currentPhase = 'council';
+                this.initializeCouncilReviews();
+              }, 1500);
+            }
+          });
+
+          this.eventSource.addEventListener('phase4.reviewer', (e) => {
+            const data = JSON.parse(e.data);
+            const review = this.councilReviews.find(r => r.name === data.reviewer);
+            if (review) {
+              review.pending = false;
+              review.verdict = data.verdict;
+              review.content = data.review;
+            }
+
+            // Auto-scroll to bottom
+            setTimeout(() => {
+              const stream = document.querySelector('.council-stream');
+              if (stream) stream.scrollTop = stream.scrollHeight;
+            }, 100);
+          });
+
+          this.eventSource.addEventListener('phase4.complete', (e) => {
+            const data = JSON.parse(e.data);
+            this.findings.verdict = data.verdict;
+            this.findings.concerns = data.concerns || 0;
+            this.findings.endorsements = data.endorsements || 0;
+            this.findings.summary = data.summary;
+
+            // Transition to findings after 2 seconds
+            setTimeout(() => {
+              this.currentPhase = 'findings';
+              this.eventSource.close();
+              this.connectionStatus = 'disconnected';
+            }, 2000);
+          });
+
+          this.eventSource.onerror = (e) => {
+            console.error('SSE error:', e);
+            this.connectionStatus = 'reconnecting';
+          };
+        },
+
+        initializeCouncilReviews() {
+          this.councilReviews = [
+            { name: 'Tech Reviewer', pending: true, verdict: '', content: '⏳ Technical Reviewer is reviewing...' },
+            { name: 'Security Reviewer', pending: true, verdict: '', content: '⏳ Security Reviewer is reviewing...' },
+            { name: 'Executive Reviewer', pending: true, verdict: '', content: '⏳ Executive Reviewer is reviewing...' },
+            { name: 'User Advocate', pending: true, verdict: '', content: '⏳ User Advocate is reviewing...' },
+            { name: 'Council Chair', pending: true, verdict: '', content: '⏳ Council Chair is deliberating...' }
+          ];
+        },
+
+        // Action Methods
+        async approveAndProceed() {
+          alert('Approve & Proceed: This would trigger Phase 5 (Task Generation).\nPhase 5 is not yet implemented.');
+          // TODO: POST to /webhook/task-generation-action when Phase 5 exists
+        },
+
+        async rejectPRD() {
+          if (!confirm('Are you sure you want to reject this PRD? This will stop the pipeline.')) return;
+          alert('PRD rejected. Pipeline stopped.');
+          // TODO: Log rejection, stop pipeline
+        },
+
+        async revisePRD() {
+          const feedback = prompt('Enter revision feedback for the PRD Writer:');
+          if (!feedback) return;
+
+          alert('Revision request submitted. This would trigger Phase 3 with feedback.\nNot yet implemented.');
+          // TODO: POST to /webhook/prd-synthesis-action with feedback
+        },
+
+        async generateTasksAnyway() {
+          if (!confirm('Generate tasks despite concerns? This may result in incomplete task breakdown.')) return;
+          alert('Generating tasks with override flag.\nPhase 5 is not yet implemented.');
+          // TODO: POST to /webhook/task-generation-action with override flag
+        }
+      };
+    }
+
+    // Auto-submit on Enter key
+    document.addEventListener('alpine:init', () => {
+      document.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && e.target.id === 'message-input') {
+          const alpineData = Alpine.$data(document.body);
+          if (alpineData) alpineData.sendMessage();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
