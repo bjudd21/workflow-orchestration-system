@@ -228,7 +228,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst prd = d.prd;\nconst e = [];\nconst fm = prd.match(/^---\\n([\\s\\S]*?)\\n---/);\nif (!fm) e.push('Missing frontmatter');\nelse {\n  const f = fm[1];\n  if (!/phase:\\s*prd-synthesis/.test(f)) e.push('phase must be prd-synthesis');\n  if (!/version:\\s*v\\d+/.test(f)) e.push('version missing');\n}\nconst secs = [\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Executive Summary/i, 'Executive Summary'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Functional Requirements/i, 'Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional Requirements/i, 'Non-Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?User Stories/i, 'User Stories'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Architecture/i, 'Architecture'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk/i, 'Risk Assessment'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?MVP/i, 'MVP']\n];\nfor (const [p, n] of secs) if (!p.test(prd)) e.push(`Missing ${n}`);\nconst frCt = (prd.match(/\\*\\*FR-\\d+:/g) || []).length;\nif (frCt < 3) e.push(`< 3 FRs (${frCt})`);\nconst nfr = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional[\\s\\S]*?(?=\\n#{1,3}\\s)/i)?.[0] || '';\nif (nfr && !/\\d+\\s*(?:ms|s|%|concurrent|users|GB|MB)/.test(nfr)) e.push('NFR lacks numeric targets');\nconst usCt = (prd.match(/\\*\\*US-\\d+:/g) || []).length;\nif (usCt < 3) e.push(`< 3 user stories (${usCt})`);\nconst risk = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk[\\s\\S]*?(?=\\n#{1,3}\\s|$)/i)?.[0] || '';\nconst riskRows = (risk.match(/\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|/g) || []).filter(r => !r.includes('---') && !/likelihood/i.test(r));\nif (riskRows.length < 2) e.push(`< 2 risks (${riskRows.length})`);\nif (e.length > 0) return [{ json: { ...d, valid: false, errors: e } }];\nreturn [{ json: { ...d, valid: true } }];"
+        "jsCode": "const d = $input.first().json;\nconst prd = d.prd;\nconst e = [];\nconst fm = prd.match(/^---\\n([\\s\\S]*?)\\n---/);\nif (!fm) e.push('Missing frontmatter');\nelse {\n  const f = fm[1];\n  if (!/phase:\\s*prd-synthesis/.test(f)) e.push('phase must be prd-synthesis');\n  if (!/version:\\s*v\\d+/.test(f)) e.push('version missing');\n}\nconst secs = [\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Executive Summary/i, 'Executive Summary'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Functional Requirements/i, 'Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional Requirements/i, 'Non-Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?User Stories/i, 'User Stories'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Architecture/i, 'Architecture'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk/i, 'Risk Assessment'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?MVP/i, 'MVP']\n];\nfor (const [p, n] of secs) if (!p.test(prd)) e.push(`Missing ${n}`);\nconst frCt = (prd.match(/\\*\\*FR-\\d+:/g) || []).length;\nif (frCt < 3) e.push(`< 3 FRs (${frCt})`);\nconst nfr = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional[\\s\\S]*?(?=\\n#{1,3}\\s)/i)?.[0] || '';\nif (nfr && nfr.length > 150 && !/No\\s+non-functional\\s+requirements|TBD|to\\s+be\\s+defined/i.test(nfr) && !/\\d+\\s*(?:ms|s|%|concurrent|users|GB|MB)/.test(nfr)) e.push('NFR lacks numeric targets');\nconst usCt = (prd.match(/\\*\\*US-\\d+:/g) || []).length;\nif (usCt < 3) e.push(`< 3 user stories (${usCt})`);\nconst risk = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk[\\s\\S]*?(?=\\n#{1,3}\\s|$)/i)?.[0] || '';\nconst riskRows = (risk.match(/\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|/g) || []).filter(r => !r.includes('---') && !/likelihood/i.test(r));\nif (riskRows.length < 2) e.push(`< 2 risks (${riskRows.length})`);\nif (e.length > 0) return [{ json: { ...d, valid: false, errors: e } }];\nreturn [{ json: { ...d, valid: true } }];"
       },
       "id": "c4d5a8ea-7ca3-4401-a695-eb01b357c606",
       "name": "Code - Validate PRD Contract",
@@ -901,27 +901,12 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst assembleData = $input.first().json;\n\n// Prepare file write\nconst handoffPath = `/home/node/workspace/${assembleData.project}/handoffs/004-council-review.md`;\n\nreturn [{\n  json: assembleData,\n  binary: {\n    data: {\n      data: assembleData.review_text,\n      mimeType: 'text/markdown',\n      fileName: handoffPath\n    }\n  }\n}];\n"
-      },
-      "id": "d5e2f5f9-98c3-4533-9a26-3fbd37441331",
-      "name": "Code - Prepare Handoff Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        5456,
-        -16
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "write",
-        "fileName": "={{ $input.first().json.project ? `/home/node/workspace/${$input.first().json.project}/handoffs/004-council-review.md` : '/tmp/council-review.md' }}",
-        "options": {}
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\n\n// Create directory if needed\nfs.mkdirSync(`/home/node/workspace/${d.project}/handoffs`, { recursive: true });\n\n// Write council review handoff\nconst handoffPath = `/home/node/workspace/${d.project}/handoffs/004-council-review.md`;\nfs.writeFileSync(handoffPath, d.reviewText, 'utf8');\n\nreturn [{ json: d }];"
       },
       "id": "9a9efdf4-6ca3-477a-9059-25e08bbadc8c",
       "name": "Write Binary File - Council Review",
-      "type": "n8n-nodes-base.readWriteFile",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         5680,
         -16
@@ -1427,7 +1412,7 @@
       "main": [
         [
           {
-            "node": "Emit Council Complete Event",
+            "node": "Write Binary File - Council Review",
             "type": "main",
             "index": 0
           }
@@ -1599,22 +1584,11 @@
         ]
       ]
     },
-    "Code - Prepare Handoff Data": {
-      "main": [
-        [
-          {
-            "node": "Write Binary File - Council Review",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Write Binary File - Council Review": {
       "main": [
         [
           {
-            "node": "Respond - Review Done",
+            "node": "Emit Council Complete Event",
             "type": "main",
             "index": 0
           }
