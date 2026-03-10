@@ -25,6 +25,10 @@ services:
       # Filesystem access — whitelist workspace and resource directories
       - N8N_FILE_SYSTEM_PATHS=/home/node/workspace:/home/node/prompts:/home/node/skills:/home/node/contracts
 
+      # Allow external module for state management
+      - NODE_FUNCTION_ALLOW_EXTERNAL=/home/node/scripts/pipeline-state.js
+      - NODE_FUNCTION_ALLOW_BUILTIN=fs,path
+
       # Execution settings — keep history for debugging
       - EXECUTIONS_DATA_SAVE_ON_ERROR=all
       - EXECUTIONS_DATA_SAVE_ON_SUCCESS=all
@@ -61,6 +65,9 @@ services:
 
       # Handoff contracts — read by validation nodes
       - ./contracts:/home/node/contracts:ro
+
+      # Scripts — state management library
+      - ./scripts:/home/node/scripts:ro
     extra_hosts:
       # Ensure host.docker.internal resolves on Linux/WSL2
       - "host.docker.internal:host-gateway"
@@ -82,4 +89,5 @@ services:
 
 volumes:
   n8n-data:
-    name: workflow-orchestration-n8n-data
+    external: true
+    name: docker_n8n_data

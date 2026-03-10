@@ -63,7 +63,7 @@ Now let's import the fixed version:
    - If you see "+ Add workflow", click it → then click "Import from file"
    - If you see "Import" button directly, click it
 3. A file picker will open
-4. Navigate to: `/home/bjudd/projects/PRDWorkflowSystem/workflow-orchestration-system-scaffold/workflows/`
+4. Navigate to: `/home/bjudd/projects/PRDWorkflowSystem/workflows/`
 5. Select: **phase-4-council-review.json**
 6. Click **"Open"**
 

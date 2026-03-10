@@ -211,15 +211,15 @@ POST http://localhost:5678/webhook/council-review-action
 ### Directory Structure
 
 ```
-workflow-orchestration-system-scaffold/
+PRDWorkflowSystem/
 ├── docker-compose.yml          # n8n service definition
 ├── setup.sh                    # First-time setup script
 ├── .env                        # Environment config (not committed)
+├── docs/                       # Documentation (you are here)
 ├── prompts/                    # Agent system prompts
 ├── skills/                     # Agent knowledge documents
 ├── workflows/                  # n8n workflow JSON files
 ├── contracts/                  # Handoff validation schemas
-├── docs/                       # Documentation (you are here)
 └── workspace/                  # Runtime artifacts (gitignored)
     └── {project-name}/
         ├── handoffs/           # Phase output artifacts
