@@ -2,7 +2,7 @@
 
 A phase-based, multi-agent workflow that transforms a project idea into a council-reviewed PRD, structured task list, and GitHub Issues — using local Ollama inference with no API keys required.
 
-**Status**: True MVP in progress — Phase 2 (Interview), Phase 3 (Synthesis), and Phase 4 (Council Review) complete and tested.
+**Status**: True MVP Core Pipeline Complete — Phase 2 (Interview), Phase 3 (Synthesis), and Phase 4 (Council Review) working end-to-end with handoff file persistence. Real-time SSE streaming UI not yet implemented.
 
 ---
 
@@ -168,9 +168,38 @@ workspace/          ← Runtime project workspaces (gitignored)
 | 4.0 Phase 2: PRD Interview workflow | ✅ Complete — live and tested |
 | 5.0 Phase 3: PRD Synthesis workflow | ✅ Complete — live and tested |
 | 6.0 Phase 4: Council Review workflow | ✅ Complete — live and tested (5 reviewers) |
-| 7.0 SSE real-time event broadcasting | ✅ Complete — Phase 3 & 4 events |
+| 7.0 SSE real-time event broadcasting | ⏸️ Deferred — Event emit nodes exist but SSE server not built |
 | 8.0 Auto-chaining (Phase 2→3→4) | ✅ Complete — tested end-to-end |
 | 9.0 Enhanced Frontend UI (HTMX + Alpine) | 🔨 Next |
+
+---
+
+## Enhanced UI Requirements
+
+The enhanced UI should provide **real-time streaming of reviewer thought processes** during council review:
+
+**Current Behavior** (working):
+- User clicks "Start Council Review"
+- Spinner shows "Running council..."
+- After ~2 minutes, full review appears
+
+**Target Behavior** (to build):
+- User clicks "Start Council Review"
+- **Technical Reviewer** card appears with header
+  - Streams thought text in real-time as LLM generates it
+  - Shows "thinking out loud" — concerns, analysis, recommendations as they're written
+- **Security Reviewer** card appears
+  - Streams its thought process in real-time
+- **Executive Reviewer** and **User Advocate** stream similarly
+- **Council Chair** synthesis streams last
+- User sees the review building incrementally, not all at once
+
+**Implementation**:
+- SSE server on port 3001 receives streaming text from n8n workflows
+- Each LLM call configured with `stream: true` (Ollama API)
+- n8n sends text chunks via HTTP POST to SSE server
+- Browser EventSource receives and displays chunks in real-time
+- Maintains conversation state and reconnection support
 
 ---
 
