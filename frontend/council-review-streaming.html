@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Council Review (Streaming)</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://unpkg.com/alpinejs@3.13.5/dist/cdn.min.js" defer></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    h2 { color: #333; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 16px; }
+
+    /* Start Controls */
+    .start-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .start-row label {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .start-row input {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 14px;
+      width: 220px;
+    }
+
+    /* Buttons */
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary { background: #0071e3; color: white; }
+    .btn-primary:hover { background: #005bb5; }
+    .btn-success { background: #28a745; color: white; }
+    .btn-success:hover { background: #218838; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-danger:hover { background: #c82333; }
+    .btn-warn { background: #fd7e14; color: white; }
+    .btn-warn:hover { background: #e06500; }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Status Messages */
+    #status {
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin: 8px 0;
+      font-size: 14px;
+      display: none;
+    }
+    #status.info { background: #d1ecf1; color: #0c5460; }
+    #status.error { background: #f8d7da; color: #721c24; }
+    #status.ok { background: #d4edda; color: #155724; }
+
+    /* Reviewer Cards Container */
+    #reviewers-container {
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    #reviewers-container.show {
+      display: flex;
+    }
+
+    /* Reviewer Card */
+    .reviewer-card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .reviewer-card.active {
+      border-color: #0071e3;
+      box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.1);
+    }
+    .reviewer-card.complete {
+      border-color: #28a745;
+    }
+
+    /* Reviewer Header */
+    .reviewer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #ddd;
+    }
+    .reviewer-card.active .reviewer-header {
+      background: #e7f3ff;
+    }
+    .reviewer-card.complete .reviewer-header {
+      background: #d4edda;
+    }
+
+    .reviewer-name {
+      font-weight: 600;
+      font-size: 15px;
+      color: #333;
+    }
+
+    .reviewer-status {
+      font-size: 13px;
+      color: #666;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Status Icons */
+    .status-waiting::before {
+      content: '⏳';
+      font-size: 14px;
+    }
+    .status-active::before {
+      content: '▶';
+      font-size: 12px;
+      color: #0071e3;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .status-complete::before {
+      content: '✓';
+      font-size: 16px;
+      color: #28a745;
+      font-weight: bold;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* Reviewer Content */
+    .reviewer-content {
+      padding: 16px;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    .reviewer-card.active .reviewer-content,
+    .reviewer-card.complete .reviewer-content {
+      max-height: 2000px;
+    }
+
+    .reviewer-text {
+      font-size: 14px;
+      line-height: 1.6;
+      color: #333;
+    }
+
+    /* Markdown Styling */
+    .reviewer-text h1, .reviewer-text h2, .reviewer-text h3 {
+      margin-top: 20px;
+      margin-bottom: 8px;
+    }
+    .reviewer-text h2 {
+      font-size: 18px;
+      color: #222;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 4px;
+    }
+    .reviewer-text h3 {
+      font-size: 16px;
+      color: #333;
+    }
+    .reviewer-text p {
+      margin: 8px 0;
+    }
+    .reviewer-text ul, .reviewer-text ol {
+      margin: 8px 0;
+      padding-left: 24px;
+    }
+    .reviewer-text li {
+      margin: 4px 0;
+    }
+    .reviewer-text strong {
+      font-weight: 600;
+      color: #222;
+    }
+    .reviewer-text code {
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 13px;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Streaming Cursor */
+    .streaming-cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: #0071e3;
+      margin-left: 2px;
+      animation: blink 1s step-start infinite;
+      vertical-align: text-bottom;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    /* Connection Status */
+    .connection-status {
+      font-size: 12px;
+      color: #666;
+      padding: 6px 12px;
+      background: #f8f9fa;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .connection-status.show {
+      display: block;
+    }
+    .connection-status.connected {
+      color: #28a745;
+      background: #d4edda;
+    }
+    .connection-status.disconnected {
+      color: #dc3545;
+      background: #f8d7da;
+    }
+
+    /* Verdict Summary */
+    #verdict-summary {
+      display: none;
+      margin-top: 20px;
+      padding: 16px;
+      background: white;
+      border: 2px solid #0071e3;
+      border-radius: 8px;
+    }
+    #verdict-summary.show {
+      display: block;
+    }
+    #verdict-summary h3 {
+      margin-top: 0;
+      color: #0071e3;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+      display: none;
+      gap: 8px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+    .action-buttons.show {
+      display: flex;
+    }
+  </style>
+</head>
+<body x-data="councilReview()">
+  <h2>Council Review (Phase 4)</h2>
+  <p class="subtitle">Real-time streaming council review with 4 reviewers + chair</p>
+
+  <!-- Start Controls -->
+  <div class="start-row" x-show="!reviewStarted">
+    <label>Project:</label>
+    <input
+      type="text"
+      x-model="projectName"
+      @keydown.enter="startReview()"
+      placeholder="my-project-name"
+    >
+    <button class="btn-primary" @click="startReview()" :disabled="isStarting">
+      <span x-show="!isStarting">Start Council Review</span>
+      <span x-show="isStarting">Starting...</span>
+    </button>
+  </div>
+
+  <!-- Connection Status -->
+  <div
+    class="connection-status"
+    :class="{
+      show: reviewStarted,
+      connected: sseConnected,
+      disconnected: !sseConnected
+    }"
+    x-show="reviewStarted"
+  >
+    <span x-show="sseConnected">● Connected to event stream</span>
+    <span x-show="!sseConnected">○ Disconnected - attempting to reconnect...</span>
+  </div>
+
+  <!-- Status Message -->
+  <div id="status" :class="statusType" x-show="statusMessage" x-text="statusMessage"></div>
+
+  <!-- Reviewers Container -->
+  <div id="reviewers-container" :class="{ show: reviewStarted }">
+    <!-- Reviewer Cards -->
+    <template x-for="reviewer in reviewers" :key="reviewer.id">
+      <div
+        class="reviewer-card"
+        :class="{
+          active: reviewer.status === 'active',
+          complete: reviewer.status === 'complete'
+        }"
+      >
+        <div class="reviewer-header">
+          <div class="reviewer-name" x-text="reviewer.name"></div>
+          <div class="reviewer-status" :class="'status-' + reviewer.status">
+            <span x-show="reviewer.status === 'waiting'">Waiting</span>
+            <span x-show="reviewer.status === 'active'">Reviewing</span>
+            <span x-show="reviewer.status === 'complete'">Complete</span>
+          </div>
+        </div>
+        <div class="reviewer-content">
+          <div class="reviewer-text" x-html="reviewer.html"></div>
+          <span
+            class="streaming-cursor"
+            x-show="reviewer.status === 'active'"
+          ></span>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Verdict Summary -->
+  <div id="verdict-summary" :class="{ show: reviewComplete }">
+    <h3>Council Verdict</h3>
+    <div x-html="verdictHtml"></div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="action-buttons" :class="{ show: reviewComplete }">
+    <button class="btn-success" @click="acceptReview()">
+      ✓ Accept Recommendations
+    </button>
+    <button class="btn-danger" @click="rejectReview()">
+      ✗ Reject Recommendations
+    </button>
+    <button class="btn-warn" @click="requestRevision()">
+      ↺ Request Revision
+    </button>
+  </div>
+
+  <script>
+    function councilReview() {
+      return {
+        projectName: '',
+        reviewStarted: false,
+        isStarting: false,
+        reviewComplete: false,
+        sseConnected: false,
+        statusMessage: '',
+        statusType: 'info',
+        verdictHtml: '',
+
+        reviewers: [
+          {
+            id: 'tech',
+            name: 'Technical Reviewer',
+            status: 'waiting',
+            text: '',
+            html: ''
+          },
+          {
+            id: 'security',
+            name: 'Security Reviewer',
+            status: 'waiting',
+            text: '',
+            html: ''
+          },
+          {
+            id: 'executive',
+            name: 'Executive Reviewer',
+            status: 'waiting',
+            text: '',
+            html: ''
+          },
+          {
+            id: 'user',
+            name: 'User Advocate',
+            status: 'waiting',
+            text: '',
+            html: ''
+          },
+          {
+            id: 'chair',
+            name: 'Council Chair',
+            status: 'waiting',
+            text: '',
+            html: ''
+          }
+        ],
+
+        eventSource: null,
+
+        async startReview() {
+          const project = this.projectName.trim().toLowerCase().replace(/\s+/g, '-');
+          if (!project) {
+            this.setStatus('Please enter a project name', 'error');
+            return;
+          }
+
+          this.isStarting = true;
+          this.setStatus('Starting council review...', 'info');
+
+          try {
+            // Trigger the review workflow
+            const response = await fetch('/webhook/council-review-action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ project, action: 'review' })
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+
+            // Connect to SSE stream
+            this.connectSSE(project);
+
+            this.reviewStarted = true;
+            this.setStatus('Council review in progress...', 'info');
+
+          } catch (error) {
+            this.setStatus(`Failed to start review: ${error.message}`, 'error');
+          } finally {
+            this.isStarting = false;
+          }
+        },
+
+        connectSSE(project) {
+          const sseUrl = `http://localhost:3001/events/${project}`;
+
+          this.eventSource = new EventSource(sseUrl);
+
+          this.eventSource.onopen = () => {
+            console.log('[SSE] Connected');
+            this.sseConnected = true;
+          };
+
+          this.eventSource.onerror = (error) => {
+            console.error('[SSE] Error:', error);
+            this.sseConnected = false;
+          };
+
+          // Listen for reviewer completion events
+          this.eventSource.addEventListener('phase4.reviewer', (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              this.handleReviewerUpdate(data);
+            } catch (error) {
+              console.error('[SSE] Parse error:', error);
+            }
+          });
+
+          // Listen for council complete event
+          this.eventSource.addEventListener('phase4.complete', (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              this.handleReviewComplete(data);
+            } catch (error) {
+              console.error('[SSE] Parse error:', error);
+            }
+          });
+        },
+
+        handleReviewerUpdate(data) {
+          console.log('[Reviewer Update]', data);
+
+          // Find the reviewer by name
+          const reviewer = this.reviewers.find(r =>
+            data.reviewer && r.name.toLowerCase().includes(data.reviewer.toLowerCase().split(' ')[0])
+          );
+
+          if (reviewer) {
+            reviewer.status = 'complete';
+            reviewer.text = data.review || '';
+            reviewer.html = marked.parse(reviewer.text);
+            this.setStatus(`${reviewer.name} completed`, 'info');
+          }
+
+          // Activate next reviewer
+          const waitingReviewer = this.reviewers.find(r => r.status === 'waiting');
+          if (waitingReviewer) {
+            waitingReviewer.status = 'active';
+          }
+        },
+
+        handleReviewComplete(data) {
+          console.log('[Review Complete]', data);
+
+          // Mark chair as complete
+          const chair = this.reviewers.find(r => r.id === 'chair');
+          if (chair) {
+            chair.status = 'complete';
+            chair.text = data.chair_synthesis || '';
+            chair.html = marked.parse(chair.text);
+          }
+
+          // Show verdict
+          this.verdictHtml = marked.parse(`
+**Verdict**: ${data.verdict || 'Unknown'}
+
+${data.review || ''}
+          `);
+
+          this.reviewComplete = true;
+          this.setStatus('Council review complete!', 'ok');
+
+          // Close SSE connection
+          if (this.eventSource) {
+            this.eventSource.close();
+            this.sseConnected = false;
+          }
+        },
+
+        setStatus(message, type) {
+          this.statusMessage = message;
+          this.statusType = type;
+        },
+
+        async acceptReview() {
+          this.setStatus('Recording acceptance...', 'info');
+          try {
+            const response = await fetch('/webhook/council-review-action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project: this.projectName.trim().toLowerCase().replace(/\s+/g, '-'),
+                action: 'decide',
+                decision: 'ACCEPTED',
+                revisions: ''
+              })
+            });
+
+            const data = await response.json();
+            if (data.error) {
+              this.setStatus(`Error: ${data.error}`, 'error');
+            } else {
+              this.setStatus('Recommendations accepted. Ready for Phase 5.', 'ok');
+            }
+          } catch (error) {
+            this.setStatus(`Failed: ${error.message}`, 'error');
+          }
+        },
+
+        async rejectReview() {
+          if (!confirm('Reject all recommendations? This will proceed without changes.')) {
+            return;
+          }
+
+          this.setStatus('Recording rejection...', 'info');
+          try {
+            const response = await fetch('/webhook/council-review-action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project: this.projectName.trim().toLowerCase().replace(/\s+/g, '-'),
+                action: 'decide',
+                decision: 'REJECTED',
+                revisions: ''
+              })
+            });
+
+            const data = await response.json();
+            if (data.error) {
+              this.setStatus(`Error: ${data.error}`, 'error');
+            } else {
+              this.setStatus('Recommendations rejected. PRD proceeds unchanged.', 'ok');
+            }
+          } catch (error) {
+            this.setStatus(`Failed: ${error.message}`, 'error');
+          }
+        },
+
+        async requestRevision() {
+          const revisions = prompt('Enter revision notes (optional):');
+          if (revisions === null) return;
+
+          this.setStatus('Requesting PRD revision...', 'info');
+          try {
+            const response = await fetch('/webhook/council-review-action', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                project: this.projectName.trim().toLowerCase().replace(/\s+/g, '-'),
+                action: 'decide',
+                decision: 'REVISE',
+                revisions
+              })
+            });
+
+            const data = await response.json();
+            if (data.error) {
+              this.setStatus(`Error: ${data.error}`, 'error');
+            } else {
+              this.setStatus('PRD revision requested. New version will be created.', 'info');
+            }
+          } catch (error) {
+            this.setStatus(`Failed: ${error.message}`, 'error');
+          }
+        }
+      };
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,3271 @@
+{
+  "updatedAt": "2026-03-10T02:17:16.256Z",
+  "createdAt": "2026-03-10T02:17:16.256Z",
+  "id": "Aj51idq5bxiC7Uhi",
+  "name": "Phase 4 — Council Review",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "path": "council-review",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c65cd68c-e1b2-4e03-ab45-213d0e546450",
+      "name": "Webhook - Get Review UI",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -5680,
+        16
+      ],
+      "webhookId": "0bd70ff2-88a0-4974-9d0b-49fc1047c475"
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "<!DOCTYPE html>\n<html>\n<head><title>Council Review</title><meta charset=\"utf-8\"><script src=\"https://cdn.jsdelivr.net/npm/marked/marked.min.js\"></script><style>*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:1100px;margin:0 auto;padding:20px;background:#f5f5f5}h2{color:#333;margin-bottom:4px}.subtitle{color:#666;font-size:14px;margin-bottom:16px}.start-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}.start-row label{font-size:14px;font-weight:600;white-space:nowrap}.start-row input{border:1px solid #ccc;border-radius:4px;padding:6px 10px;font-size:14px;width:220px}button{padding:8px 16px;border:none;border-radius:6px;font-size:14px;cursor:pointer}.btn-primary{background:#0071e3;color:white}.btn-primary:hover{background:#005bb5}.btn-success{background:#28a745;color:white}.btn-success:hover{background:#218838}.btn-danger{background:#dc3545;color:white}.btn-danger:hover{background:#c82333}.btn-warn{background:#fd7e14;color:white}.btn-warn:hover{background:#e06500}button:disabled{opacity:.5;cursor:not-allowed}#review-area{background:white;border:1px solid #ddd;border-radius:8px;padding:24px;min-height:300px;margin:12px 0;display:none;line-height:1.6}#review-area h1,#review-area h2,#review-area h3{margin-top:24px}#review-area table{border-collapse:collapse;width:100%;margin:12px 0}#review-area td,#review-area th{border:1px solid #ddd;padding:6px 10px;font-size:13px;text-align:left}#review-area th{background:#f5f5f5;font-weight:600}#review-area pre{background:#f8f8f8;padding:12px;border-radius:4px;overflow-x:auto}#review-area code{font-size:13px}.controls{display:none;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-top:4px}.controls.show{display:flex}.meta{font-size:12px;color:#888;margin-bottom:4px;display:none}#revisions-wrap{display:none;flex-direction:column;gap:8px;width:100%;margin-top:4px}#revisions-wrap textarea{width:100%;height:120px;border:1px solid #ccc;border-radius:4px;padding:8px;font-size:14px;resize:vertical}#status{padding:10px 14px;border-radius:6px;margin:8px 0;font-size:14px;display:none}#status.info{background:#d1ecf1;color:#0c5460}#status.error{background:#f8d7da;color:#721c24}#status.ok{background:#d4edda;color:#155724}.spinner{display:inline-block;width:13px;height:13px;border:2px solid #aaa;border-top-color:#333;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:5px}@keyframes spin{to{transform:rotate(360deg)}}.gate-controls{display:none;gap:8px;margin-top:16px}.gate-controls.show{display:flex}</style></head>\n<body><h2>Council Review (Phase 4)</h2><p class=\"subtitle\">Run PRD Council: 4 core reviewers + Council Chair. Review takes 15-20 minutes.</p><div class=\"start-row\"><label>Project:</label><input type=\"text\" id=\"project\" placeholder=\"my-project-name\"><button class=\"btn-primary\" id=\"btn-start\" onclick=\"startReview()\">Start Council Review</button></div><div id=\"status\"></div><div class=\"meta\" id=\"meta\"></div><div id=\"review-area\"></div><div class=\"controls\" id=\"controls\"><button class=\"btn-success\" id=\"btn-accept\" onclick=\"showAccept()\">✓ Accept Recommendations</button><button class=\"btn-danger\" id=\"btn-reject\" onclick=\"rejectReview()\">✕ Reject Recommendations</button><div id=\"revisions-wrap\"><label style=\"font-weight:600\">Recommendations to apply (optional, one per line):</label><textarea id=\"revisions\" placeholder=\"Leave blank to accept verdict without PRD changes...\"></textarea><button class=\"btn-success\" onclick=\"submitAcceptance()\">Apply & Continue</button></div></div><div class=\"gate-controls\" id=\"gate\"><button class=\"btn-success\" onclick=\"gateDecision('PROCEED')\">→ Proceed to Phase 5</button><button class=\"btn-warn\" onclick=\"gateDecision('RECONVENE')\">↺ Reconvene Council</button></div><script>let proj='',reviewNum=1;function setStatus(msg,type){const s=document.getElementById('status');s.style.display='block';s.className=type;s.innerHTML=msg}function setLoading(on){['btn-start','btn-accept','btn-reject'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=on})}function showReview(text,reviewNumber,project,verdict){reviewNum=reviewNumber;proj=project;document.getElementById('review-area').style.display='block';document.getElementById('review-area').innerHTML=marked.parse(text);document.getElementById('controls').className='controls show';const m=document.getElementById('meta');m.style.display='block';m.textContent='Review r'+reviewNumber+' — '+project+' — Verdict: '+verdict;document.getElementById('revisions-wrap').style.display='none';document.getElementById('revisions').value=''}async function post(body){const res=await fetch('/webhook/council-review-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return res.json()}async function startReview(){proj=document.getElementById('project').value.trim().toLowerCase().replace(/\\s+/g,'-');if(!proj){setStatus('Enter a project name.','error');return}setStatus('<span class=\"spinner\"></span> Running council — 4 reviewers + chair. Takes 15-20 min…','info');setLoading(true);try{const d=await post({project:proj,action:'review'});if(d.error){setStatus('Error: '+d.error,'error');return}showReview(d.review_text,d.review_number,d.project,d.verdict);setStatus('Council r'+d.review_number+' complete. Verdict: '+d.verdict+'. Accept or reject.','ok')}catch(e){setStatus('Failed: '+e.message,'error')}finally{setLoading(false)}}function showAccept(){document.getElementById('revisions-wrap').style.display='flex';document.getElementById('revisions').focus()}async function submitAcceptance(){const rev=document.getElementById('revisions').value.trim();setStatus('<span class=\"spinner\"></span> Applying recommendations…','info');setLoading(true);try{const d=await post({project:proj,action:'decide',decision:'ACCEPTED',revisions:rev});if(d.error){setStatus('Error: '+d.error,'error');return}setStatus('Accepted. PRD now v'+d.new_prd_version+'.','ok');document.getElementById('controls').className='controls';document.getElementById('gate').className='gate-controls show'}catch(e){setStatus('Failed: '+e.message,'error')}finally{setLoading(false)}}async function rejectReview(){setStatus('<span class=\"spinner\"></span> Recording rejection…','info');setLoading(true);try{const d=await post({project:proj,action:'decide',decision:'REJECTED',revisions:''});if(d.error){setStatus('Error: '+d.error,'error');return}setStatus('Rejected. PRD proceeds unchanged.','ok');document.getElementById('controls').className='controls';document.getElementById('gate').className='gate-controls show'}catch(e){setStatus('Failed: '+e.message,'error')}finally{setLoading(false)}}async function gateDecision(choice){setStatus('<span class=\"spinner\"></span> Gate: '+choice+'…','info');try{const d=await post({project:proj,action:'gate',gate_decision:choice});if(d.error){setStatus('Error: '+d.error,'error');return}if(choice==='PROCEED'){setStatus('✓ Gate: PROCEED. Ready for Phase 5.','ok');document.getElementById('gate').className='gate-controls'}else{setStatus('Gate: RECONVENE. Next review: '+d.next_review_file,'info');document.getElementById('gate').className='gate-controls'}}catch(e){setStatus('Failed: '+e.message,'error')}}</script></body>\n</html>",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "text/html; charset=utf-8"
+              }
+            ]
+          }
+        }
+      },
+      "id": "cdc6975e-c28d-4b25-9e3c-411170a0ee97",
+      "name": "Respond - Review UI",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -5376,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "council-review-action",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "157b3a08-6437-404c-b542-a6e078727716",
+      "name": "Webhook - Council Action",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -5680,
+        320
+      ],
+      "webhookId": "924f1a58-2f47-4fda-84da-e1610c5b3bde"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst body = input.body || input;  // Handle both wrapped and direct input\n\nconst project = (body.project || '').trim().toLowerCase().replace(/\\s+/g, '-');\nconst action = body.action || 'review';\nconst reviewNum = body.reviewNum || 1;\n\nif (!project) throw new Error('project required');\nif (!['review', 'decide', 'gate'].includes(action)) throw new Error('invalid action');\n\nconst wp = `/home/node/workspace/${project}`;\nconst councilHandoff = reviewNum === 1 ?\n  `${wp}/handoffs/004-council-review.md` :\n  `${wp}/handoffs/004-council-review-r${reviewNum}.md`;\n\nreturn [{\n  json: {\n    project,\n    action,\n    decision: body.decision || '',\n    gateDecision: body.gate_decision || '',\n    revisions: body.revisions || '',\n    reviewNum,\n    wp,\n    prdHandoff: `${wp}/handoffs/003-prd-refined.md`,\n    councilHandoff,\n    prdDir: `${wp}/tasks`,\n    promptsDir: '/home/node/prompts',\n    skillsDir: '/home/node/skills'\n  }\n}];"
+      },
+      "id": "246c4992-e571-4b9d-abcd-88b682ef9e37",
+      "name": "Code - Validate Inputs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -5376,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:11434/api/tags",
+        "options": {
+          "response": {},
+          "timeout": 10000
+        }
+      },
+      "id": "0bd81a05-a0c4-493b-97bf-bd0f0cc2fe3f",
+      "name": "HTTP - Ollama Health",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -5392,
+        768
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "reach",
+              "leftValue": "={{ Array.isArray($json.models) }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cae895a7-3f72-455c-854f-45397ee5df35",
+      "name": "IF - Ollama Reachable",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -5104,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={\"error\": \"Ollama unreachable. Ensure qwen3.5:35b-a3b is loaded.\"}",
+        "options": {
+          "responseCode": 503,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "74af710a-77b4-4244-ada6-a07081a35ef9",
+      "name": "Respond - Ollama Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -4960,
+        656
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "act",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "review",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5b7d6ef3-6955-4139-8084-34dbbe5cba15",
+      "name": "IF - Route Action",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -4848,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "dec",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "decide",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b054d740-94bd-421d-b343-caccce67dc49",
+      "name": "IF - Is Decide",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -4752,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd } }];"
+      },
+      "id": "1e8239d0-751a-4018-8aa4-b3ec6c9d8417",
+      "name": "Read - PRD File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4176,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst prd = d.prd;\nconst e = [];\nconst fm = prd.match(/^---\\n([\\s\\S]*?)\\n---/);\nif (!fm) e.push('Missing frontmatter');\nelse {\n  const f = fm[1];\n  if (!/phase:\\s*prd-synthesis/.test(f)) e.push('phase must be prd-synthesis');\n  if (!/version:\\s*v\\d+/.test(f)) e.push('version missing');\n}\nconst secs = [\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Executive Summary/i, 'Executive Summary'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Functional Requirements/i, 'Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional Requirements/i, 'Non-Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?User Stories/i, 'User Stories'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Architecture/i, 'Architecture'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk/i, 'Risk Assessment'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?MVP/i, 'MVP']\n];\nfor (const [p, n] of secs) if (!p.test(prd)) e.push(`Missing ${n}`);\nconst frCt = (prd.match(/\\*\\*FR-\\d+:/g) || []).length;\nif (frCt < 3) e.push(`< 3 FRs (${frCt})`);\nconst nfr = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional[\\s\\S]*?(?=\\n#{1,3}\\s)/i)?.[0] || '';\nif (nfr && nfr.length > 150 && !/No\\s+non-functional\\s+requirements|TBD|to\\s+be\\s+defined/i.test(nfr) && !/\\d+\\s*(?:ms|s|%|concurrent|users|GB|MB)/.test(nfr)) e.push('NFR lacks numeric targets');\nconst usCt = (prd.match(/\\*\\*US-\\d+:/g) || []).length;\nif (usCt < 3) e.push(`< 3 user stories (${usCt})`);\nconst risk = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk[\\s\\S]*?(?=\\n#{1,3}\\s|$)/i)?.[0] || '';\nconst riskRows = (risk.match(/\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|/g) || []).filter(r => !r.includes('---') && !/likelihood/i.test(r));\nif (riskRows.length < 2) e.push(`< 2 risks (${riskRows.length})`);\nif (e.length > 0) return [{ json: { ...d, valid: false, errors: e } }];\nreturn [{ json: { ...d, valid: true } }];"
+      },
+      "id": "8bf96127-429e-4330-acf9-b5f68ee0f102",
+      "name": "Code - Validate PRD Contract",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3872,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "v",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1277bdb3-b867-4fed-b17a-91d7eaf01784",
+      "name": "IF - PRD Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3568,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({ error: \"PRD validation failed\", errors: $json.errors }) }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "1490f2f5-7cf1-4398-ae6c-97f251f4e7a4",
+      "name": "Respond - PRD Invalid",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -3280,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\n\n// Reviewer definitions\nconst reviewerDefs = [\n  { name: 'Technical Reviewer', prompt: 'prd-council/core/technical-reviewer.md', skills: ['council/technical-review.md'] },\n  { name: 'Security Reviewer', prompt: 'prd-council/core/security-reviewer.md', skills: ['council/security-review.md'] },\n  { name: 'Executive Reviewer', prompt: 'prd-council/core/executive-reviewer.md', skills: ['council/business-alignment.md'] },\n  { name: 'User Advocate', prompt: 'prd-council/core/user-advocate.md', skills: ['council/ux-review.md'] }\n];\n\n// Load prompts and skills for each reviewer\nconst reviewers = reviewerDefs.map((r, i) => {\n  const promptPath = `${d.promptsDir}/${r.prompt}`;\n  const prompt = fs.readFileSync(promptPath, 'utf8');\n  \n  const skillsContent = r.skills.map(s => {\n    const skillPath = `${d.skillsDir}/${s}`;\n    return fs.readFileSync(skillPath, 'utf8');\n  }).join('\\n\\n---\\n\\n');\n  \n  return {\n    index: i,\n    name: r.name,\n    prompt,\n    skills: skillsContent\n  };\n});\n\n// Return single item with reviewers array\nreturn [{\n  json: {\n    ...d,\n    reviewers\n  }\n}];"
+      },
+      "id": "94f9d050-4030-486f-9cca-49d76ff86744",
+      "name": "Code - Load Reviewers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3280,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[0];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, idx: 0, sys, usr } }];"
+      },
+      "id": "0a4df273-9496-410c-bab2-fef145cc9a83",
+      "name": "Code - Build R1 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2976,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "610b142a-5e8b-45c9-9e60-f2f2a747188d",
+      "name": "HTTP - Run R1 (Tech)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -2672,
+        128
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R1 Request').first().json;\n\nreturn [{ json: { ...buildData, r1: httpResp.response, r1name: 'Technical Reviewer' } }];"
+      },
+      "id": "109548ad-2821-4910-bfd3-62bc3acd3198",
+      "name": "Code - Save R1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2368,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Code - Save R1').first().json;\nconst r = d.reviewers[1];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+      },
+      "id": "e05aca84-8a05-4cfd-9f12-f8ccc343fe8d",
+      "name": "Code - Build R2 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2336,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "47351e1a-5dc3-4f0c-b81f-e5c3aaa200a2",
+      "name": "HTTP - Run R2 (Sec)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -2064,
+        672
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R2 Request').first().json;\n\nreturn [{ json: { ...buildData, r2: httpResp.response, r2name: 'Security Reviewer' } }];"
+      },
+      "id": "b45c1f03-6be8-4d6d-b8fb-fa407f11e178",
+      "name": "Code - Save R2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1952,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Code - Save R2').first().json;\nconst r = d.reviewers[2];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+      },
+      "id": "896af559-8711-43f3-89ba-a01d02cc8b18",
+      "name": "Code - Build R3 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1728,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "5b06928f-1168-4634-beda-314672fe8def",
+      "name": "HTTP - Run R3 (Exec)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1600,
+        672
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R3 Request').first().json;\n\nreturn [{ json: { ...buildData, r3: httpResp.response, r3name: 'Executive Reviewer' } }];"
+      },
+      "id": "b1771b6e-e21c-41de-bd2a-8b735a704e26",
+      "name": "Code - Save R3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1472,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Code - Save R3').first().json;\nconst r = d.reviewers[3];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+      },
+      "id": "53a47ab4-954d-4ec0-9241-85dcc981fb65",
+      "name": "Code - Build R4 Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1232,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "e38e5409-37e0-45f4-8dcc-c476bba5797e",
+      "name": "HTTP - Run R4 (User)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -1088,
+        672
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R4 Request').first().json;\n\nreturn [{ json: { ...buildData, r4: httpResp.response, r4name: 'User Advocate' } }];"
+      },
+      "id": "6c58b0ce-e986-4eb2-83b2-0bb8321c0e70",
+      "name": "Code - Save R4",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -960,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: \"Respond with: ready\", stream: false, options: { num_predict: 10 } }) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "f6e5a139-6202-4c50-9dd3-d1751a77d128",
+      "name": "HTTP - Warm Quality Model",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -720,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $('Code - Save R4').first().json;\n\n// Note: In production, prompt/skill files would be read separately\n// For MVP, using inline placeholders\nconst chairPromptPlaceholder = `You are the Council Chair. Synthesize all reviewer feedback into a unified assessment.\n\nOUTPUT FORMAT:\n## Consensus Points\n[List areas where reviewers agree]\n\n## Conflicts\n[List areas where reviewers disagree]\n\n## Overall Verdict\n[APPROVED / APPROVED WITH CONCERNS / REVISE AND RESUBMIT]\n\n## Required Revisions\n[Numbered list if verdict is not APPROVED]`;\n\nconst sys = chairPromptPlaceholder;\nconst allRev = `## Reviewer Outputs\n\n### ${d.r1name}\n\n${d.r1}\n\n---\n\n### ${d.r2name}\n\n${d.r2}\n\n---\n\n### ${d.r3name}\n\n${d.r3}\n\n---\n\n### ${d.r4name}\n\n${d.r4}\n\n---`;\n\nconst usr = `Synthesize these 4 reviews into a unified council assessment:\\n\\n${allRev}`;\n\nreturn [{ json: { ...d, sys, usr } }];"
+      },
+      "id": "a59c48ba-7a97-48c0-8f53-058f93f08a3f",
+      "name": "Code - Build Chair Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "4acac0a3-b7a2-4a12-a41b-8deb8042e021",
+      "name": "HTTP - Run Chair",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -480,
+        400
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build Chair Request').first().json;\n\nconst chair = httpResp.response;\nconst vm = chair.match(/Overall Verdict:\\s*(APPROVED|APPROVED WITH CONCERNS|REVISE AND RESUBMIT)/i);\nconst verdict = vm ? vm[1] : 'APPROVED WITH CONCERNS';\nconst reviewText = `---\nphase: council-review\nproject: ${buildData.project}\nreview_number: ${buildData.reviewNum}\ndate: ${new Date().toISOString().split('T')[0]}\nprd_version_reviewed: ${buildData.prdV}\nreviewers:\n  - technical-reviewer\n  - security-reviewer\n  - executive-reviewer\n  - user-advocate\n  - council-chair\noverall_verdict: ${verdict}\nstatus: PENDING\n---\n\n# Council Review — ${buildData.project}\n\n## Reviewer Outputs\n\n### Technical Reviewer\n\n${buildData.r1}\n\n---\n\n### Security Reviewer\n\n${buildData.r2}\n\n---\n\n### Executive Reviewer\n\n${buildData.r3}\n\n---\n\n### User Advocate\n\n${buildData.r4}\n\n---\n\n## Council Chair Synthesis\n\n${chair}\n\n---\n\n## User Decisions\n\n**Status**: PENDING\n\nUser review in progress.\n\n---\n\n## PRD Revision Log\n\n**PRD version before council**: ${buildData.prdV}\n**PRD version after revisions**: (pending)\n\n### Changes Made\n\n(pending)\n\n---\n\n## Re-Review Status\n\n**Gate Decision**: (pending)\n**Decision Date**: (pending)\n**Rationale**: (pending)\n`;\nreturn [{ json: { ...buildData, reviewText, verdict, response: chair } }];"
+      },
+      "id": "491d22d8-39b0-4cf5-ab08-5e6113b48cef",
+      "name": "Code - Assemble Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -272,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({ success: true, review_text: $json.reviewText, verdict: $json.verdict, review_number: $json.reviewNum, project: $json.project }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "9b5a73d8-d438-4183-8f8b-1fa37df1bbaa",
+      "name": "Respond - Review Done",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst decision = d.decision;\nif (!decision) throw new Error('decision required (ACCEPTED or REJECTED)');\n\nconst revisions = d.revisions.trim();\nconst prdMatch = councilText.match(/prd_version_reviewed:\\s*(v\\d+)/);\nconst oldVer = prdMatch ? prdMatch[1] : 'v1';\nconst newVerNum = parseInt(oldVer.substring(1)) + 1;\nconst newVer = `v${newVerNum}`;\n\n// Update council handoff with decision\nconst today = new Date().toISOString().split('T')[0];\nconst decisionBlock = `\\n\\n---\\n## User Decision (${today})\\n\\n**Status**: ${decision}\\n${revisions ? `\\n**Revisions to Apply**:\\n${revisions}\\n` : ''}\\n---\\n`;\nconst updatedCouncil = councilText + decisionBlock;\n\nreturn [{\n  json: {\n    ...d,\n    decision,\n    oldPrdVersion: oldVer,\n    newPrdVersion: decision === 'ACCEPTED' ? newVer : oldVer,\n    councilHandoffContent: updatedCouncil,\n    message: `Decision recorded: ${decision}${decision === 'ACCEPTED' ? ` (PRD ${oldVer} → ${newVer})` : ''}`\n  }\n}];"
+      },
+      "id": "319dcb2c-8036-4fd0-b389-bc9c0154d425",
+      "name": "Code - Handle User Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4000,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({ success: true, decision: $json.decision, new_prd_version: $json.new_prd_version, project: $json.project }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "94bd03a9-3240-4ea3-991c-0a81908eec97",
+      "name": "Respond - Decision Recorded",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -3808,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst gate = d.gateDecision;\nif (!gate) throw new Error('gate_decision required (PROCEED or RECONVENE)');\n\nconst today = new Date().toISOString().split('T')[0];\nconst rationale = gate === 'PROCEED' ?\n  'User approved proceeding to next phase.' :\n  'User requested council reconvene for re-review.';\n\nconst gateBlock = `\\n\\n---\\n## Re-Review Gate (${today})\\n\\n**Gate Decision**: ${gate}\\n**Rationale**: ${rationale}\\n---\\n`;\nconst updatedCouncil = councilText + gateBlock;\n\nconst nextReviewFile = gate === 'RECONVENE' ?\n  `${d.wp}/handoffs/004-council-review-r${d.reviewNum + 1}.md` :\n  '';\n\nreturn [{\n  json: {\n    ...d,\n    gateDecision: gate,\n    councilHandoffContent: updatedCouncil,\n    nextReviewFile,\n    message: `Gate decision: ${gate}${gate === 'RECONVENE' ? ` (next: r${d.reviewNum + 1})` : ''}`\n  }\n}];"
+      },
+      "id": "d7cb32e9-c6f6-42b4-ac92-5dd808bd2ede",
+      "name": "Code - Handle Gate Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4176,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ JSON.stringify({ success: true, gate_decision: $json.gate_decision, next_review_file: $json.next_review_file, project: $json.project }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "9dd4007d-56a2-40d8-9289-ec8cce53fb7c",
+      "name": "Respond - Gate Recorded",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -3792,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet councilFileContent;\ntry {\n  councilFileContent = fs.readFileSync(d.councilHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`Council review not found at ${d.councilHandoff}.`);\n}\nreturn [{ json: { ...d, councilFileContent } }];"
+      },
+      "id": "e9311862-7fe3-4c52-b430-34025a0c3617",
+      "name": "Read - Council for Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4224,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet councilFileContent;\ntry {\n  councilFileContent = fs.readFileSync(d.councilHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`Council review not found at ${d.councilHandoff}.`);\n}\nreturn [{ json: { ...d, councilFileContent } }];"
+      },
+      "id": "2ae95b75-9aa6-480c-943d-34e2b2a949c5",
+      "name": "Read - Council for Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4384,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst decision = d.decision;\nconst revisions = (d.revisions || '').trim();\n\nreturn [{\n  json: {\n    ...d,\n    shouldRevise: decision === 'ACCEPTED' && revisions.length > 0\n  }\n}];"
+      },
+      "id": "1b937c72-8f28-43bb-b755-8ab9ff200310",
+      "name": "Code - Check If Accepted",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -4208,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "accept",
+              "leftValue": "={{ $json.shouldRevise }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "62ef8560-8cc5-45c8-8127-a5af7ba616cd",
+      "name": "IF - Should Revise PRD",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -4016,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}.`);\n}\nreturn [{ json: { ...d, prd } }];"
+      },
+      "id": "023d60af-c95f-43e5-aa1c-4fcd9dc06d1e",
+      "name": "Read Binary File - Current PRD",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3808,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst item = $input.first().json;\nconst currentPRD = item.prd || '';\n\n// Extract version from PRD frontmatter\nconst versionMatch = currentPRD.match(/version:\\s*(v\\d+)/);\nconst currentVersion = versionMatch ? versionMatch[1] : 'v1';\nconst newVersionNum = parseInt(currentVersion.substring(1)) + 1;\nconst newVersion = `v${newVersionNum}`;\n\nreturn [{\n  json: {\n    ...d,\n    currentPRD,\n    currentVersion,\n    newVersion\n  }\n}];"
+      },
+      "id": "1666cd30-d022-4d06-9662-d390d37b4816",
+      "name": "Code - Parse Current PRD",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3616,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\n\n// Build PRD Writer prompt for revisions\nconst systemPrompt = `You are the PRD Writer. Apply the following council recommendations to the PRD below.\n\nCOUNCIL RECOMMENDATIONS TO APPLY:\n${d.revisions}\n\nCURRENT PRD (${d.currentVersion}):\n${d.currentPRD}\n\nINSTRUCTIONS:\n- Apply ONLY the specific recommendations listed above\n- Maintain all existing sections and structure\n- Update the version in frontmatter to ${d.newVersion}\n- Preserve all other content unchanged\n- Output the complete updated PRD\n\nOUTPUT: Complete revised PRD with version ${d.newVersion}`;\n\nreturn [{\n  json: {\n    ...d,\n    model: \"qwen3.5:35b-a3b\",\n    prompt: systemPrompt,\n    stream: False,\n    temperature: 0.7,\n    num_predict: 8000\n  }\n}];"
+      },
+      "id": "b5e7a309-0aa0-4811-aed2-a9595e5cfcd5",
+      "name": "Code - Build Revision Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3424,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "6233dd91-12c3-4fb1-9c5e-9a5f339787c7",
+      "name": "HTTP - Ollama Revise PRD",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        -3216,
+        576
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 30000
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst resp = $input.first().json;\nconst revisedPRD = resp.response || '';\n\nif (!revisedPRD || revisedPRD.length < 100) {\n  throw new Error('PRD revision failed - empty or too short response');\n}\n\nconst version = d.newVersion;  // newVersion passed through data flow\n\nreturn [{\n  json: {\n    ...d,\n    revisedPRD,\n    newPrdVersion: version,\n    prdFileName: `prd-${d.project}-${version}.md`\n  }\n}];"
+      },
+      "id": "b40a72a7-5dc5-49f5-9f59-285852f5e7a8",
+      "name": "Code - Parse Revised PRD",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3024,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\n\n// Create directory if needed\nfs.mkdirSync(`/home/node/workspace/${d.project}/tasks`, { recursive: true });\n\n// Write revised PRD\nconst prdPath = `/home/node/workspace/${d.project}/tasks/${d.prdFileName}`;\nfs.writeFileSync(prdPath, d.revisedPRD, 'utf8');\n\nreturn [{\n  json: {\n    ...d,\n    prd_path: prdPath\n  }\n}];"
+      },
+      "id": "a871bdbd-858e-4be3-8001-cc5664abf7a2",
+      "name": "Write Binary File - Save Revised PRD",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2816,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\n\n// Create directory if needed\nfs.mkdirSync(`/home/node/workspace/${d.project}/handoffs`, { recursive: true });\n\n// Update handoff file with revised PRD\nfs.writeFileSync(d.prdHandoff, d.revisedPRD, 'utf8');\n\nreturn [{ json: d }];"
+      },
+      "id": "f692b9d0-8777-43d3-853e-05609a04f178",
+      "name": "Write Binary File - Update Handoff",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2624,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst gate = d.gateDecision;\n\nreturn [{\n  json: {\n    ...d,\n    shouldReconvene: gate === 'RECONVENE'\n  }\n}];"
+      },
+      "id": "c4cf7fab-3f89-48a4-b14f-64b6b3241da0",
+      "name": "Code - Check If Reconvene",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3968,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "reconvene",
+              "leftValue": "={{ $json.shouldReconvene }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4f99f51c-2d84-4748-9371-010a1959fb94",
+      "name": "IF - Should Reconvene",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -3600,
+        928
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\n\n// Create directory if needed\nfs.mkdirSync(`/home/node/workspace/${d.project}/handoffs`, { recursive: true });\n\n// Write council review handoff\nconst handoffPath = `/home/node/workspace/${d.project}/handoffs/004-council-review.md`;\nfs.writeFileSync(handoffPath, d.reviewText, 'utf8');\n\nreturn [{ json: d }];"
+      },
+      "id": "46d0b0ac-d7b4-4dc7-b3d7-0259f43f6b34",
+      "name": "Write Binary File - Council Review",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase4/reviewer",
+        "sendBody": true,
+        "options": {
+          "timeout": 5000
+        },
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"reviewer\": \"{{ $json.r1name }}\",\n  \"review\": \"{{ $json.r1 }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -2336,
+        384
+      ],
+      "id": "43f0dd31-9eb2-4f2e-b271-76e588f10461",
+      "name": "Emit Tech Reviewer Event"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase4/reviewer",
+        "sendBody": true,
+        "options": {
+          "timeout": 5000
+        },
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"reviewer\": \"{{ $json.r2name }}\",\n  \"review\": \"{{ $json.r2 }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1840,
+        144
+      ],
+      "id": "d9a6a0c8-3481-4375-bc05-9aa4427c24d7",
+      "name": "Emit Security Reviewer Event"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase4/reviewer",
+        "sendBody": true,
+        "options": {
+          "timeout": 5000
+        },
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"reviewer\": \"{{ $json.r3name }}\",\n  \"review\": \"{{ $json.r3 }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1360,
+        144
+      ],
+      "id": "9329db8d-1c90-4555-a8d7-ebb285c95cfa",
+      "name": "Emit Executive Reviewer Event"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase4/reviewer",
+        "sendBody": true,
+        "options": {
+          "timeout": 5000
+        },
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"reviewer\": \"{{ $json.r4name }}\",\n  \"review\": \"{{ $json.r4 }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -832,
+        144
+      ],
+      "id": "99727e3c-7b04-4807-8a69-d883c87a6ca5",
+      "name": "Emit User Reviewer Event"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase4/complete",
+        "sendBody": true,
+        "options": {
+          "timeout": 5000
+        },
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"verdict\": \"{{ $json.verdict }}\",\n  \"review\": \"{{ $json.reviewText }}\",\n  \"chair_synthesis\": \"{{ $json.response }}\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\"\n}"
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -64,
+        400
+      ],
+      "id": "fb1caa23-55a4-4260-9883-8d6cd6b3c696",
+      "name": "Emit Council Complete Event"
+    }
+  ],
+  "connections": {
+    "Webhook - Get Review UI": {
+      "main": [
+        [
+          {
+            "node": "Respond - Review UI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Council Action": {
+      "main": [
+        [
+          {
+            "node": "Code - Validate Inputs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Validate Inputs": {
+      "main": [
+        [
+          {
+            "node": "IF - Route Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Ollama Health": {
+      "main": [
+        [
+          {
+            "node": "IF - Ollama Reachable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Ollama Reachable": {
+      "main": [
+        [
+          {
+            "node": "IF - Route Action",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Ollama Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Route Action": {
+      "main": [
+        [
+          {
+            "node": "Read - PRD File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "IF - Is Decide",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Is Decide": {
+      "main": [
+        [
+          {
+            "node": "Read - Council for Decision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Read - Council for Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Validate PRD Contract": {
+      "main": [
+        [
+          {
+            "node": "IF - PRD Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - PRD Valid": {
+      "main": [
+        [
+          {
+            "node": "Code - Load Reviewers",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - PRD Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Load Reviewers": {
+      "main": [
+        [
+          {
+            "node": "Code - Build R1 Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build R1 Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Run R1 (Tech)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Run R1 (Tech)": {
+      "main": [
+        [
+          {
+            "node": "Code - Save R1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Save R1": {
+      "main": [
+        [
+          {
+            "node": "Emit Tech Reviewer Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build R2 Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Run R2 (Sec)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Run R2 (Sec)": {
+      "main": [
+        [
+          {
+            "node": "Code - Save R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Save R2": {
+      "main": [
+        [
+          {
+            "node": "Emit Security Reviewer Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build R3 Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Run R3 (Exec)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Run R3 (Exec)": {
+      "main": [
+        [
+          {
+            "node": "Code - Save R3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Save R3": {
+      "main": [
+        [
+          {
+            "node": "Emit Executive Reviewer Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build R4 Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Run R4 (User)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Run R4 (User)": {
+      "main": [
+        [
+          {
+            "node": "Code - Save R4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Save R4": {
+      "main": [
+        [
+          {
+            "node": "Emit User Reviewer Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Warm Quality Model": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Chair Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build Chair Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Run Chair",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Run Chair": {
+      "main": [
+        [
+          {
+            "node": "Code - Assemble Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Assemble Output": {
+      "main": [
+        [
+          {
+            "node": "Write Binary File - Council Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Handle User Decision": {
+      "main": [
+        [
+          {
+            "node": "Respond - Decision Recorded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Handle Gate Decision": {
+      "main": [
+        [
+          {
+            "node": "Respond - Gate Recorded",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read - Council for Decision": {
+      "main": [
+        [
+          {
+            "node": "Code - Handle User Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read - Council for Gate": {
+      "main": [
+        [
+          {
+            "node": "Code - Handle Gate Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read - PRD File": {
+      "main": [
+        [
+          {
+            "node": "Code - Validate PRD Contract",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Check If Accepted": {
+      "main": [
+        [
+          {
+            "node": "IF - Should Revise PRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Should Revise PRD": {
+      "main": [
+        [
+          {
+            "node": "Read Binary File - Current PRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Binary File - Current PRD": {
+      "main": [
+        [
+          {
+            "node": "Code - Parse Current PRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Parse Current PRD": {
+      "main": [
+        [
+          {
+            "node": "Code - Build Revision Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Build Revision Prompt": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Ollama Revise PRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Ollama Revise PRD": {
+      "main": [
+        [
+          {
+            "node": "Code - Parse Revised PRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Parse Revised PRD": {
+      "main": [
+        [
+          {
+            "node": "Write Binary File - Save Revised PRD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Binary File - Save Revised PRD": {
+      "main": [
+        [
+          {
+            "node": "Write Binary File - Update Handoff",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Check If Reconvene": {
+      "main": [
+        [
+          {
+            "node": "IF - Should Reconvene",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF - Should Reconvene": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Ollama Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Binary File - Council Review": {
+      "main": [
+        [
+          {
+            "node": "Emit Council Complete Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emit Tech Reviewer Event": {
+      "main": [
+        [
+          {
+            "node": "Code - Build R2 Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emit Security Reviewer Event": {
+      "main": [
+        [
+          {
+            "node": "Code - Build R3 Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emit Executive Reviewer Event": {
+      "main": [
+        [
+          {
+            "node": "Code - Build R4 Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emit User Reviewer Event": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Warm Quality Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emit Council Complete Event": {
+      "main": [
+        [
+          {
+            "node": "Respond - Review Done",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": null,
+  "pinData": {},
+  "versionId": "9bf41692-a07b-4eb6-844f-4d9061d1891e",
+  "activeVersionId": "9bf41692-a07b-4eb6-844f-4d9061d1891e",
+  "versionCounter": 6,
+  "triggerCount": 2,
+  "shared": [
+    {
+      "updatedAt": "2026-03-10T02:17:16.258Z",
+      "createdAt": "2026-03-10T02:17:16.258Z",
+      "role": "workflow:owner",
+      "workflowId": "Aj51idq5bxiC7Uhi",
+      "projectId": "DuCoH15VKueQNuNJ",
+      "project": {
+        "updatedAt": "2026-02-26T07:39:18.975Z",
+        "createdAt": "2026-02-26T07:36:29.843Z",
+        "id": "DuCoH15VKueQNuNJ",
+        "name": "Brian Judd <bjudd21@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "90397d95-49a3-424f-9a9b-66990dc3616e"
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-03-10T02:17:19.000Z",
+    "createdAt": "2026-03-10T02:17:16.260Z",
+    "versionId": "9bf41692-a07b-4eb6-844f-4d9061d1891e",
+    "workflowId": "Aj51idq5bxiC7Uhi",
+    "nodes": [
+      {
+        "parameters": {
+          "path": "council-review",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "c65cd68c-e1b2-4e03-ab45-213d0e546450",
+        "name": "Webhook - Get Review UI",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          -5680,
+          16
+        ],
+        "webhookId": "0bd70ff2-88a0-4974-9d0b-49fc1047c475"
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "<!DOCTYPE html>\n<html>\n<head><title>Council Review</title><meta charset=\"utf-8\"><script src=\"https://cdn.jsdelivr.net/npm/marked/marked.min.js\"></script><style>*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:1100px;margin:0 auto;padding:20px;background:#f5f5f5}h2{color:#333;margin-bottom:4px}.subtitle{color:#666;font-size:14px;margin-bottom:16px}.start-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}.start-row label{font-size:14px;font-weight:600;white-space:nowrap}.start-row input{border:1px solid #ccc;border-radius:4px;padding:6px 10px;font-size:14px;width:220px}button{padding:8px 16px;border:none;border-radius:6px;font-size:14px;cursor:pointer}.btn-primary{background:#0071e3;color:white}.btn-primary:hover{background:#005bb5}.btn-success{background:#28a745;color:white}.btn-success:hover{background:#218838}.btn-danger{background:#dc3545;color:white}.btn-danger:hover{background:#c82333}.btn-warn{background:#fd7e14;color:white}.btn-warn:hover{background:#e06500}button:disabled{opacity:.5;cursor:not-allowed}#review-area{background:white;border:1px solid #ddd;border-radius:8px;padding:24px;min-height:300px;margin:12px 0;display:none;line-height:1.6}#review-area h1,#review-area h2,#review-area h3{margin-top:24px}#review-area table{border-collapse:collapse;width:100%;margin:12px 0}#review-area td,#review-area th{border:1px solid #ddd;padding:6px 10px;font-size:13px;text-align:left}#review-area th{background:#f5f5f5;font-weight:600}#review-area pre{background:#f8f8f8;padding:12px;border-radius:4px;overflow-x:auto}#review-area code{font-size:13px}.controls{display:none;gap:8px;align-items:flex-start;flex-wrap:wrap;margin-top:4px}.controls.show{display:flex}.meta{font-size:12px;color:#888;margin-bottom:4px;display:none}#revisions-wrap{display:none;flex-direction:column;gap:8px;width:100%;margin-top:4px}#revisions-wrap textarea{width:100%;height:120px;border:1px solid #ccc;border-radius:4px;padding:8px;font-size:14px;resize:vertical}#status{padding:10px 14px;border-radius:6px;margin:8px 0;font-size:14px;display:none}#status.info{background:#d1ecf1;color:#0c5460}#status.error{background:#f8d7da;color:#721c24}#status.ok{background:#d4edda;color:#155724}.spinner{display:inline-block;width:13px;height:13px;border:2px solid #aaa;border-top-color:#333;border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle;margin-right:5px}@keyframes spin{to{transform:rotate(360deg)}}.gate-controls{display:none;gap:8px;margin-top:16px}.gate-controls.show{display:flex}</style></head>\n<body><h2>Council Review (Phase 4)</h2><p class=\"subtitle\">Run PRD Council: 4 core reviewers + Council Chair. Review takes 15-20 minutes.</p><div class=\"start-row\"><label>Project:</label><input type=\"text\" id=\"project\" placeholder=\"my-project-name\"><button class=\"btn-primary\" id=\"btn-start\" onclick=\"startReview()\">Start Council Review</button></div><div id=\"status\"></div><div class=\"meta\" id=\"meta\"></div><div id=\"review-area\"></div><div class=\"controls\" id=\"controls\"><button class=\"btn-success\" id=\"btn-accept\" onclick=\"showAccept()\">✓ Accept Recommendations</button><button class=\"btn-danger\" id=\"btn-reject\" onclick=\"rejectReview()\">✕ Reject Recommendations</button><div id=\"revisions-wrap\"><label style=\"font-weight:600\">Recommendations to apply (optional, one per line):</label><textarea id=\"revisions\" placeholder=\"Leave blank to accept verdict without PRD changes...\"></textarea><button class=\"btn-success\" onclick=\"submitAcceptance()\">Apply & Continue</button></div></div><div class=\"gate-controls\" id=\"gate\"><button class=\"btn-success\" onclick=\"gateDecision('PROCEED')\">→ Proceed to Phase 5</button><button class=\"btn-warn\" onclick=\"gateDecision('RECONVENE')\">↺ Reconvene Council</button></div><script>let proj='',reviewNum=1;function setStatus(msg,type){const s=document.getElementById('status');s.style.display='block';s.className=type;s.innerHTML=msg}function setLoading(on){['btn-start','btn-accept','btn-reject'].forEach(id=>{const el=document.getElementById(id);if(el)el.disabled=on})}function showReview(text,reviewNumber,project,verdict){reviewNum=reviewNumber;proj=project;document.getElementById('review-area').style.display='block';document.getElementById('review-area').innerHTML=marked.parse(text);document.getElementById('controls').className='controls show';const m=document.getElementById('meta');m.style.display='block';m.textContent='Review r'+reviewNumber+' — '+project+' — Verdict: '+verdict;document.getElementById('revisions-wrap').style.display='none';document.getElementById('revisions').value=''}async function post(body){const res=await fetch('/webhook/council-review-action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});return res.json()}async function startReview(){proj=document.getElementById('project').value.trim().toLowerCase().replace(/\\s+/g,'-');if(!proj){setStatus('Enter a project name.','error');return}setStatus('<span class=\"spinner\"></span> Running council — 4 reviewers + chair. Takes 15-20 min…','info');setLoading(true);try{const d=await post({project:proj,action:'review'});if(d.error){setStatus('Error: '+d.error,'error');return}showReview(d.review_text,d.review_number,d.project,d.verdict);setStatus('Council r'+d.review_number+' complete. Verdict: '+d.verdict+'. Accept or reject.','ok')}catch(e){setStatus('Failed: '+e.message,'error')}finally{setLoading(false)}}function showAccept(){document.getElementById('revisions-wrap').style.display='flex';document.getElementById('revisions').focus()}async function submitAcceptance(){const rev=document.getElementById('revisions').value.trim();setStatus('<span class=\"spinner\"></span> Applying recommendations…','info');setLoading(true);try{const d=await post({project:proj,action:'decide',decision:'ACCEPTED',revisions:rev});if(d.error){setStatus('Error: '+d.error,'error');return}setStatus('Accepted. PRD now v'+d.new_prd_version+'.','ok');document.getElementById('controls').className='controls';document.getElementById('gate').className='gate-controls show'}catch(e){setStatus('Failed: '+e.message,'error')}finally{setLoading(false)}}async function rejectReview(){setStatus('<span class=\"spinner\"></span> Recording rejection…','info');setLoading(true);try{const d=await post({project:proj,action:'decide',decision:'REJECTED',revisions:''});if(d.error){setStatus('Error: '+d.error,'error');return}setStatus('Rejected. PRD proceeds unchanged.','ok');document.getElementById('controls').className='controls';document.getElementById('gate').className='gate-controls show'}catch(e){setStatus('Failed: '+e.message,'error')}finally{setLoading(false)}}async function gateDecision(choice){setStatus('<span class=\"spinner\"></span> Gate: '+choice+'…','info');try{const d=await post({project:proj,action:'gate',gate_decision:choice});if(d.error){setStatus('Error: '+d.error,'error');return}if(choice==='PROCEED'){setStatus('✓ Gate: PROCEED. Ready for Phase 5.','ok');document.getElementById('gate').className='gate-controls'}else{setStatus('Gate: RECONVENE. Next review: '+d.next_review_file,'info');document.getElementById('gate').className='gate-controls'}}catch(e){setStatus('Failed: '+e.message,'error')}}</script></body>\n</html>",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "text/html; charset=utf-8"
+                }
+              ]
+            }
+          }
+        },
+        "id": "cdc6975e-c28d-4b25-9e3c-411170a0ee97",
+        "name": "Respond - Review UI",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          -5376,
+          16
+        ]
+      },
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "council-review-action",
+          "responseMode": "responseNode",
+          "options": {}
+        },
+        "id": "157b3a08-6437-404c-b542-a6e078727716",
+        "name": "Webhook - Council Action",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          -5680,
+          320
+        ],
+        "webhookId": "924f1a58-2f47-4fda-84da-e1610c5b3bde"
+      },
+      {
+        "parameters": {
+          "jsCode": "const input = $input.first().json;\nconst body = input.body || input;  // Handle both wrapped and direct input\n\nconst project = (body.project || '').trim().toLowerCase().replace(/\\s+/g, '-');\nconst action = body.action || 'review';\nconst reviewNum = body.reviewNum || 1;\n\nif (!project) throw new Error('project required');\nif (!['review', 'decide', 'gate'].includes(action)) throw new Error('invalid action');\n\nconst wp = `/home/node/workspace/${project}`;\nconst councilHandoff = reviewNum === 1 ?\n  `${wp}/handoffs/004-council-review.md` :\n  `${wp}/handoffs/004-council-review-r${reviewNum}.md`;\n\nreturn [{\n  json: {\n    project,\n    action,\n    decision: body.decision || '',\n    gateDecision: body.gate_decision || '',\n    revisions: body.revisions || '',\n    reviewNum,\n    wp,\n    prdHandoff: `${wp}/handoffs/003-prd-refined.md`,\n    councilHandoff,\n    prdDir: `${wp}/tasks`,\n    promptsDir: '/home/node/prompts',\n    skillsDir: '/home/node/skills'\n  }\n}];"
+        },
+        "id": "246c4992-e571-4b9d-abcd-88b682ef9e37",
+        "name": "Code - Validate Inputs",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -5376,
+          320
+        ]
+      },
+      {
+        "parameters": {
+          "url": "http://host.docker.internal:11434/api/tags",
+          "options": {
+            "response": {},
+            "timeout": 10000
+          }
+        },
+        "id": "0bd81a05-a0c4-493b-97bf-bd0f0cc2fe3f",
+        "name": "HTTP - Ollama Health",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -5392,
+          768
+        ],
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "reach",
+                "leftValue": "={{ Array.isArray($json.models) }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "cae895a7-3f72-455c-854f-45397ee5df35",
+        "name": "IF - Ollama Reachable",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          -5104,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "={\"error\": \"Ollama unreachable. Ensure qwen3.5:35b-a3b is loaded.\"}",
+          "options": {
+            "responseCode": 503,
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "id": "74af710a-77b4-4244-ada6-a07081a35ef9",
+        "name": "Respond - Ollama Error",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          -4960,
+          656
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "act",
+                "leftValue": "={{ $json.action }}",
+                "rightValue": "review",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "5b7d6ef3-6955-4139-8084-34dbbe5cba15",
+        "name": "IF - Route Action",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          -4848,
+          112
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "dec",
+                "leftValue": "={{ $json.action }}",
+                "rightValue": "decide",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "b054d740-94bd-421d-b343-caccce67dc49",
+        "name": "IF - Is Decide",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          -4752,
+          832
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}. Run Phase 3 first.`);\n}\nreturn [{ json: { ...d, prd } }];"
+        },
+        "id": "1e8239d0-751a-4018-8aa4-b3ec6c9d8417",
+        "name": "Read - PRD File",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -4176,
+          128
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $input.first().json;\nconst prd = d.prd;\nconst e = [];\nconst fm = prd.match(/^---\\n([\\s\\S]*?)\\n---/);\nif (!fm) e.push('Missing frontmatter');\nelse {\n  const f = fm[1];\n  if (!/phase:\\s*prd-synthesis/.test(f)) e.push('phase must be prd-synthesis');\n  if (!/version:\\s*v\\d+/.test(f)) e.push('version missing');\n}\nconst secs = [\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Executive Summary/i, 'Executive Summary'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Functional Requirements/i, 'Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional Requirements/i, 'Non-Functional Requirements'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?User Stories/i, 'User Stories'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Architecture/i, 'Architecture'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk/i, 'Risk Assessment'],\n  [/#{1,3}\\s+(?:\\d+\\.\\s+)?MVP/i, 'MVP']\n];\nfor (const [p, n] of secs) if (!p.test(prd)) e.push(`Missing ${n}`);\nconst frCt = (prd.match(/\\*\\*FR-\\d+:/g) || []).length;\nif (frCt < 3) e.push(`< 3 FRs (${frCt})`);\nconst nfr = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Non-Functional[\\s\\S]*?(?=\\n#{1,3}\\s)/i)?.[0] || '';\nif (nfr && nfr.length > 150 && !/No\\s+non-functional\\s+requirements|TBD|to\\s+be\\s+defined/i.test(nfr) && !/\\d+\\s*(?:ms|s|%|concurrent|users|GB|MB)/.test(nfr)) e.push('NFR lacks numeric targets');\nconst usCt = (prd.match(/\\*\\*US-\\d+:/g) || []).length;\nif (usCt < 3) e.push(`< 3 user stories (${usCt})`);\nconst risk = prd.match(/#{1,3}\\s+(?:\\d+\\.\\s+)?Risk[\\s\\S]*?(?=\\n#{1,3}\\s|$)/i)?.[0] || '';\nconst riskRows = (risk.match(/\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|[^|\\n]+\\|/g) || []).filter(r => !r.includes('---') && !/likelihood/i.test(r));\nif (riskRows.length < 2) e.push(`< 2 risks (${riskRows.length})`);\nif (e.length > 0) return [{ json: { ...d, valid: false, errors: e } }];\nreturn [{ json: { ...d, valid: true } }];"
+        },
+        "id": "8bf96127-429e-4330-acf9-b5f68ee0f102",
+        "name": "Code - Validate PRD Contract",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -3872,
+          128
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict",
+              "version": 2
+            },
+            "conditions": [
+              {
+                "id": "v",
+                "leftValue": "={{ $json.valid }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "1277bdb3-b867-4fed-b17a-91d7eaf01784",
+        "name": "IF - PRD Valid",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          -3568,
+          128
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "={{ JSON.stringify({ error: \"PRD validation failed\", errors: $json.errors }) }}",
+          "options": {
+            "responseCode": 400,
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "id": "1490f2f5-7cf1-4398-ae6c-97f251f4e7a4",
+        "name": "Respond - PRD Invalid",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          -3280,
+          320
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\n\n// Reviewer definitions\nconst reviewerDefs = [\n  { name: 'Technical Reviewer', prompt: 'prd-council/core/technical-reviewer.md', skills: ['council/technical-review.md'] },\n  { name: 'Security Reviewer', prompt: 'prd-council/core/security-reviewer.md', skills: ['council/security-review.md'] },\n  { name: 'Executive Reviewer', prompt: 'prd-council/core/executive-reviewer.md', skills: ['council/business-alignment.md'] },\n  { name: 'User Advocate', prompt: 'prd-council/core/user-advocate.md', skills: ['council/ux-review.md'] }\n];\n\n// Load prompts and skills for each reviewer\nconst reviewers = reviewerDefs.map((r, i) => {\n  const promptPath = `${d.promptsDir}/${r.prompt}`;\n  const prompt = fs.readFileSync(promptPath, 'utf8');\n  \n  const skillsContent = r.skills.map(s => {\n    const skillPath = `${d.skillsDir}/${s}`;\n    return fs.readFileSync(skillPath, 'utf8');\n  }).join('\\n\\n---\\n\\n');\n  \n  return {\n    index: i,\n    name: r.name,\n    prompt,\n    skills: skillsContent\n  };\n});\n\n// Return single item with reviewers array\nreturn [{\n  json: {\n    ...d,\n    reviewers\n  }\n}];"
+        },
+        "id": "94f9d050-4030-486f-9cca-49d76ff86744",
+        "name": "Code - Load Reviewers",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -3280,
+          128
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $input.first().json;\nconst r = d.reviewers[0];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, idx: 0, sys, usr } }];"
+        },
+        "id": "0a4df273-9496-410c-bab2-fef145cc9a83",
+        "name": "Code - Build R1 Request",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -2976,
+          128
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://host.docker.internal:11434/api/generate",
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}",
+          "options": {
+            "timeout": 300000
+          }
+        },
+        "id": "610b142a-5e8b-45c9-9e60-f2f2a747188d",
+        "name": "HTTP - Run R1 (Tech)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -2672,
+          128
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 30000
+      },
+      {
+        "parameters": {
+          "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R1 Request').first().json;\n\nreturn [{ json: { ...buildData, r1: httpResp.response, r1name: 'Technical Reviewer' } }];"
+        },
+        "id": "109548ad-2821-4910-bfd3-62bc3acd3198",
+        "name": "Code - Save R1",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -2368,
+          128
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $('Code - Save R1').first().json;\nconst r = d.reviewers[1];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+        },
+        "id": "e05aca84-8a05-4cfd-9f12-f8ccc343fe8d",
+        "name": "Code - Build R2 Request",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -2336,
+          672
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://host.docker.internal:11434/api/generate",
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}",
+          "options": {
+            "timeout": 300000
+          }
+        },
+        "id": "47351e1a-5dc3-4f0c-b81f-e5c3aaa200a2",
+        "name": "HTTP - Run R2 (Sec)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -2064,
+          672
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 30000
+      },
+      {
+        "parameters": {
+          "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R2 Request').first().json;\n\nreturn [{ json: { ...buildData, r2: httpResp.response, r2name: 'Security Reviewer' } }];"
+        },
+        "id": "b45c1f03-6be8-4d6d-b8fb-fa407f11e178",
+        "name": "Code - Save R2",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1952,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $('Code - Save R2').first().json;\nconst r = d.reviewers[2];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+        },
+        "id": "896af559-8711-43f3-89ba-a01d02cc8b18",
+        "name": "Code - Build R3 Request",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1728,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://host.docker.internal:11434/api/generate",
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}",
+          "options": {
+            "timeout": 300000
+          }
+        },
+        "id": "5b06928f-1168-4634-beda-314672fe8def",
+        "name": "HTTP - Run R3 (Exec)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -1600,
+          672
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 30000
+      },
+      {
+        "parameters": {
+          "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R3 Request').first().json;\n\nreturn [{ json: { ...buildData, r3: httpResp.response, r3name: 'Executive Reviewer' } }];"
+        },
+        "id": "b1771b6e-e21c-41de-bd2a-8b735a704e26",
+        "name": "Code - Save R3",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1472,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $('Code - Save R3').first().json;\nconst r = d.reviewers[3];\nconst sys = `${r.prompt}\\n\\n# Skills\\n\\n${r.skills}`;\nconst usr = `You are reviewing this PRD:\\n\\n${d.prd}\\n\\nProvide your review per the system prompt format.`;\nreturn [{ json: { ...d, sys, usr } }];"
+        },
+        "id": "53a47ab4-954d-4ec0-9241-85dcc981fb65",
+        "name": "Code - Build R4 Request",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -1232,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://host.docker.internal:11434/api/generate",
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}",
+          "options": {
+            "timeout": 300000
+          }
+        },
+        "id": "e38e5409-37e0-45f4-8dcc-c476bba5797e",
+        "name": "HTTP - Run R4 (User)",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -1088,
+          672
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 30000
+      },
+      {
+        "parameters": {
+          "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build R4 Request').first().json;\n\nreturn [{ json: { ...buildData, r4: httpResp.response, r4name: 'User Advocate' } }];"
+        },
+        "id": "6c58b0ce-e986-4eb2-83b2-0bb8321c0e70",
+        "name": "Code - Save R4",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -960,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://host.docker.internal:11434/api/generate",
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: \"Respond with: ready\", stream: false, options: { num_predict: 10 } }) }}",
+          "options": {
+            "timeout": 60000
+          }
+        },
+        "id": "f6e5a139-6202-4c50-9dd3-d1751a77d128",
+        "name": "HTTP - Warm Quality Model",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -720,
+          400
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 30000,
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $('Code - Save R4').first().json;\n\n// Note: In production, prompt/skill files would be read separately\n// For MVP, using inline placeholders\nconst chairPromptPlaceholder = `You are the Council Chair. Synthesize all reviewer feedback into a unified assessment.\n\nOUTPUT FORMAT:\n## Consensus Points\n[List areas where reviewers agree]\n\n## Conflicts\n[List areas where reviewers disagree]\n\n## Overall Verdict\n[APPROVED / APPROVED WITH CONCERNS / REVISE AND RESUBMIT]\n\n## Required Revisions\n[Numbered list if verdict is not APPROVED]`;\n\nconst sys = chairPromptPlaceholder;\nconst allRev = `## Reviewer Outputs\n\n### ${d.r1name}\n\n${d.r1}\n\n---\n\n### ${d.r2name}\n\n${d.r2}\n\n---\n\n### ${d.r3name}\n\n${d.r3}\n\n---\n\n### ${d.r4name}\n\n${d.r4}\n\n---`;\n\nconst usr = `Synthesize these 4 reviews into a unified council assessment:\\n\\n${allRev}`;\n\nreturn [{ json: { ...d, sys, usr } }];"
+        },
+        "id": "a59c48ba-7a97-48c0-8f53-058f93f08a3f",
+        "name": "Code - Build Chair Request",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -592,
+          672
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://host.docker.internal:11434/api/generate",
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ JSON.stringify({ model: \"qwen3.5:35b-a3b\", prompt: $json.sys + \"\\n\\n\" + $json.usr, stream: false, options: { temperature: 0.7, num_predict: 4000 } }) }}",
+          "options": {
+            "timeout": 300000
+          }
+        },
+        "id": "4acac0a3-b7a2-4a12-a41b-8deb8042e021",
+        "name": "HTTP - Run Chair",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -480,
+          400
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 30000
+      },
+      {
+        "parameters": {
+          "jsCode": "const httpResp = $input.first().json;\nconst buildData = $('Code - Build Chair Request').first().json;\n\nconst chair = httpResp.response;\nconst vm = chair.match(/Overall Verdict:\\s*(APPROVED|APPROVED WITH CONCERNS|REVISE AND RESUBMIT)/i);\nconst verdict = vm ? vm[1] : 'APPROVED WITH CONCERNS';\nconst reviewText = `---\nphase: council-review\nproject: ${buildData.project}\nreview_number: ${buildData.reviewNum}\ndate: ${new Date().toISOString().split('T')[0]}\nprd_version_reviewed: ${buildData.prdV}\nreviewers:\n  - technical-reviewer\n  - security-reviewer\n  - executive-reviewer\n  - user-advocate\n  - council-chair\noverall_verdict: ${verdict}\nstatus: PENDING\n---\n\n# Council Review — ${buildData.project}\n\n## Reviewer Outputs\n\n### Technical Reviewer\n\n${buildData.r1}\n\n---\n\n### Security Reviewer\n\n${buildData.r2}\n\n---\n\n### Executive Reviewer\n\n${buildData.r3}\n\n---\n\n### User Advocate\n\n${buildData.r4}\n\n---\n\n## Council Chair Synthesis\n\n${chair}\n\n---\n\n## User Decisions\n\n**Status**: PENDING\n\nUser review in progress.\n\n---\n\n## PRD Revision Log\n\n**PRD version before council**: ${buildData.prdV}\n**PRD version after revisions**: (pending)\n\n### Changes Made\n\n(pending)\n\n---\n\n## Re-Review Status\n\n**Gate Decision**: (pending)\n**Decision Date**: (pending)\n**Rationale**: (pending)\n`;\nreturn [{ json: { ...buildData, reviewText, verdict, response: chair } }];"
+        },
+        "id": "491d22d8-39b0-4cf5-ab08-5e6113b48cef",
+        "name": "Code - Assemble Output",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -272,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "={{ JSON.stringify({ success: true, review_text: $json.reviewText, verdict: $json.verdict, review_number: $json.reviewNum, project: $json.project }) }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "id": "9b5a73d8-d438-4183-8f8b-1fa37df1bbaa",
+        "name": "Respond - Review Done",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          240,
+          400
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $input.first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst decision = d.decision;\nif (!decision) throw new Error('decision required (ACCEPTED or REJECTED)');\n\nconst revisions = d.revisions.trim();\nconst prdMatch = councilText.match(/prd_version_reviewed:\\s*(v\\d+)/);\nconst oldVer = prdMatch ? prdMatch[1] : 'v1';\nconst newVerNum = parseInt(oldVer.substring(1)) + 1;\nconst newVer = `v${newVerNum}`;\n\n// Update council handoff with decision\nconst today = new Date().toISOString().split('T')[0];\nconst decisionBlock = `\\n\\n---\\n## User Decision (${today})\\n\\n**Status**: ${decision}\\n${revisions ? `\\n**Revisions to Apply**:\\n${revisions}\\n` : ''}\\n---\\n`;\nconst updatedCouncil = councilText + decisionBlock;\n\nreturn [{\n  json: {\n    ...d,\n    decision,\n    oldPrdVersion: oldVer,\n    newPrdVersion: decision === 'ACCEPTED' ? newVer : oldVer,\n    councilHandoffContent: updatedCouncil,\n    message: `Decision recorded: ${decision}${decision === 'ACCEPTED' ? ` (PRD ${oldVer} → ${newVer})` : ''}`\n  }\n}];"
+        },
+        "id": "319dcb2c-8036-4fd0-b389-bc9c0154d425",
+        "name": "Code - Handle User Decision",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -4000,
+          384
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "={{ JSON.stringify({ success: true, decision: $json.decision, new_prd_version: $json.new_prd_version, project: $json.project }) }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "id": "94bd03a9-3240-4ea3-991c-0a81908eec97",
+        "name": "Respond - Decision Recorded",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          -3808,
+          384
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $input.first().json;\nconst councilText = $input.first().json.councilFileContent || '';\nconst gate = d.gateDecision;\nif (!gate) throw new Error('gate_decision required (PROCEED or RECONVENE)');\n\nconst today = new Date().toISOString().split('T')[0];\nconst rationale = gate === 'PROCEED' ?\n  'User approved proceeding to next phase.' :\n  'User requested council reconvene for re-review.';\n\nconst gateBlock = `\\n\\n---\\n## Re-Review Gate (${today})\\n\\n**Gate Decision**: ${gate}\\n**Rationale**: ${rationale}\\n---\\n`;\nconst updatedCouncil = councilText + gateBlock;\n\nconst nextReviewFile = gate === 'RECONVENE' ?\n  `${d.wp}/handoffs/004-council-review-r${d.reviewNum + 1}.md` :\n  '';\n\nreturn [{\n  json: {\n    ...d,\n    gateDecision: gate,\n    councilHandoffContent: updatedCouncil,\n    nextReviewFile,\n    message: `Gate decision: ${gate}${gate === 'RECONVENE' ? ` (next: r${d.reviewNum + 1})` : ''}`\n  }\n}];"
+        },
+        "id": "d7cb32e9-c6f6-42b4-ac92-5dd808bd2ede",
+        "name": "Code - Handle Gate Decision",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -4176,
+          928
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "text",
+          "responseBody": "={{ JSON.stringify({ success: true, gate_decision: $json.gate_decision, next_review_file: $json.next_review_file, project: $json.project }) }}",
+          "options": {
+            "responseHeaders": {
+              "entries": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          }
+        },
+        "id": "9dd4007d-56a2-40d8-9289-ec8cce53fb7c",
+        "name": "Respond - Gate Recorded",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1,
+        "position": [
+          -3792,
+          928
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet councilFileContent;\ntry {\n  councilFileContent = fs.readFileSync(d.councilHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`Council review not found at ${d.councilHandoff}.`);\n}\nreturn [{ json: { ...d, councilFileContent } }];"
+        },
+        "id": "e9311862-7fe3-4c52-b430-34025a0c3617",
+        "name": "Read - Council for Decision",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -4224,
+          384
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet councilFileContent;\ntry {\n  councilFileContent = fs.readFileSync(d.councilHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`Council review not found at ${d.councilHandoff}.`);\n}\nreturn [{ json: { ...d, councilFileContent } }];"
+        },
+        "id": "2ae95b75-9aa6-480c-943d-34e2b2a949c5",
+        "name": "Read - Council for Gate",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -4384,
+          928
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $input.first().json;\nconst decision = d.decision;\nconst revisions = (d.revisions || '').trim();\n\nreturn [{\n  json: {\n    ...d,\n    shouldRevise: decision === 'ACCEPTED' && revisions.length > 0\n  }\n}];"
+        },
+        "id": "1b937c72-8f28-43bb-b755-8ab9ff200310",
+        "name": "Code - Check If Accepted",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -4208,
+          672
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "leftValue": "",
+              "caseSensitive": true,
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "accept",
+                "leftValue": "={{ $json.shouldRevise }}",
+                "rightValue": "true",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "62ef8560-8cc5-45c8-8127-a5af7ba616cd",
+        "name": "IF - Should Revise PRD",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          -4016,
+          672
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\nlet prd;\ntry {\n  prd = fs.readFileSync(d.prdHandoff, 'utf8');\n} catch(e) {\n  throw new Error(`PRD not found at ${d.prdHandoff}.`);\n}\nreturn [{ json: { ...d, prd } }];"
+        },
+        "id": "023d60af-c95f-43e5-aa1c-4fcd9dc06d1e",
+        "name": "Read Binary File - Current PRD",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -3808,
+          576
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $input.first().json;\nconst item = $input.first().json;\nconst currentPRD = item.prd || '';\n\n// Extract version from PRD frontmatter\nconst versionMatch = currentPRD.match(/version:\\s*(v\\d+)/);\nconst currentVersion = versionMatch ? versionMatch[1] : 'v1';\nconst newVersionNum = parseInt(currentVersion.substring(1)) + 1;\nconst newVersion = `v${newVersionNum}`;\n\nreturn [{\n  json: {\n    ...d,\n    currentPRD,\n    currentVersion,\n    newVersion\n  }\n}];"
+        },
+        "id": "1666cd30-d022-4d06-9662-d390d37b4816",
+        "name": "Code - Parse Current PRD",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -3616,
+          576
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $input.first().json;\n\n// Build PRD Writer prompt for revisions\nconst systemPrompt = `You are the PRD Writer. Apply the following council recommendations to the PRD below.\n\nCOUNCIL RECOMMENDATIONS TO APPLY:\n${d.revisions}\n\nCURRENT PRD (${d.currentVersion}):\n${d.currentPRD}\n\nINSTRUCTIONS:\n- Apply ONLY the specific recommendations listed above\n- Maintain all existing sections and structure\n- Update the version in frontmatter to ${d.newVersion}\n- Preserve all other content unchanged\n- Output the complete updated PRD\n\nOUTPUT: Complete revised PRD with version ${d.newVersion}`;\n\nreturn [{\n  json: {\n    ...d,\n    model: \"qwen3.5:35b-a3b\",\n    prompt: systemPrompt,\n    stream: False,\n    temperature: 0.7,\n    num_predict: 8000\n  }\n}];"
+        },
+        "id": "b5e7a309-0aa0-4811-aed2-a9595e5cfcd5",
+        "name": "Code - Build Revision Prompt",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -3424,
+          576
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "http://host.docker.internal:11434/api/generate",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": []
+          },
+          "options": {
+            "timeout": 300000
+          }
+        },
+        "id": "6233dd91-12c3-4fb1-9c5e-9a5f339787c7",
+        "name": "HTTP - Ollama Revise PRD",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4,
+        "position": [
+          -3216,
+          576
+        ],
+        "retryOnFail": true,
+        "maxTries": 3,
+        "waitBetweenTries": 30000
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $input.first().json;\nconst resp = $input.first().json;\nconst revisedPRD = resp.response || '';\n\nif (!revisedPRD || revisedPRD.length < 100) {\n  throw new Error('PRD revision failed - empty or too short response');\n}\n\nconst version = d.newVersion;  // newVersion passed through data flow\n\nreturn [{\n  json: {\n    ...d,\n    revisedPRD,\n    newPrdVersion: version,\n    prdFileName: `prd-${d.project}-${version}.md`\n  }\n}];"
+        },
+        "id": "b40a72a7-5dc5-49f5-9f59-285852f5e7a8",
+        "name": "Code - Parse Revised PRD",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -3024,
+          576
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\n\n// Create directory if needed\nfs.mkdirSync(`/home/node/workspace/${d.project}/tasks`, { recursive: true });\n\n// Write revised PRD\nconst prdPath = `/home/node/workspace/${d.project}/tasks/${d.prdFileName}`;\nfs.writeFileSync(prdPath, d.revisedPRD, 'utf8');\n\nreturn [{\n  json: {\n    ...d,\n    prd_path: prdPath\n  }\n}];"
+        },
+        "id": "a871bdbd-858e-4be3-8001-cc5664abf7a2",
+        "name": "Write Binary File - Save Revised PRD",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -2816,
+          576
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\n\n// Create directory if needed\nfs.mkdirSync(`/home/node/workspace/${d.project}/handoffs`, { recursive: true });\n\n// Update handoff file with revised PRD\nfs.writeFileSync(d.prdHandoff, d.revisedPRD, 'utf8');\n\nreturn [{ json: d }];"
+        },
+        "id": "f692b9d0-8777-43d3-853e-05609a04f178",
+        "name": "Write Binary File - Update Handoff",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -2624,
+          576
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const d = $input.first().json;\nconst gate = d.gateDecision;\n\nreturn [{\n  json: {\n    ...d,\n    shouldReconvene: gate === 'RECONVENE'\n  }\n}];"
+        },
+        "id": "c4cf7fab-3f89-48a4-b14f-64b6b3241da0",
+        "name": "Code - Check If Reconvene",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          -3968,
+          928
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "leftValue": "",
+              "caseSensitive": true,
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "reconvene",
+                "leftValue": "={{ $json.shouldReconvene }}",
+                "rightValue": "true",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "4f99f51c-2d84-4748-9371-010a1959fb94",
+        "name": "IF - Should Reconvene",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          -3600,
+          928
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const fs = require('fs');\nconst d = $input.first().json;\n\n// Create directory if needed\nfs.mkdirSync(`/home/node/workspace/${d.project}/handoffs`, { recursive: true });\n\n// Write council review handoff\nconst handoffPath = `/home/node/workspace/${d.project}/handoffs/004-council-review.md`;\nfs.writeFileSync(handoffPath, d.reviewText, 'utf8');\n\nreturn [{ json: d }];"
+        },
+        "id": "46d0b0ac-d7b4-4dc7-b3d7-0259f43f6b34",
+        "name": "Write Binary File - Council Review",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase4/reviewer",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "reviewer",
+                "value": "Tech Reviewer"
+              },
+              {
+                "name": "review",
+                "value": "=={{ $json.r1_review }}"
+              },
+              {
+                "name": "verdict",
+                "value": "=={{ $json.r1_verdict }}"
+              },
+              {
+                "name": "concerns",
+                "value": "=={{ $json.r1_concerns_count || 0 }}"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 5000
+          }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          -2336,
+          384
+        ],
+        "id": "43f0dd31-9eb2-4f2e-b271-76e588f10461",
+        "name": "Emit Tech Reviewer Event"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase4/reviewer",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "reviewer",
+                "value": "Security Reviewer"
+              },
+              {
+                "name": "review",
+                "value": "=={{ $json.r2_review }}"
+              },
+              {
+                "name": "verdict",
+                "value": "=={{ $json.r2_verdict }}"
+              },
+              {
+                "name": "concerns_count",
+                "value": "=={{ $json.r2_concerns_count || 0 }}"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 5000
+          }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          -1840,
+          144
+        ],
+        "id": "d9a6a0c8-3481-4375-bc05-9aa4427c24d7",
+        "name": "Emit Security Reviewer Event"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase4/reviewer",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "reviewer",
+                "value": "Executive Reviewer"
+              },
+              {
+                "name": "review",
+                "value": "=={{ $json.r3_review }}"
+              },
+              {
+                "name": "verdict",
+                "value": "=={{ $json.r3_verdict }}"
+              },
+              {
+                "name": "concerns_count",
+                "value": "=={{ $json.r3_concerns_count || 0 }}"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 5000
+          }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          -1360,
+          144
+        ],
+        "id": "9329db8d-1c90-4555-a8d7-ebb285c95cfa",
+        "name": "Emit Executive Reviewer Event"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase4/reviewer",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "reviewer",
+                "value": "User Reviewer"
+              },
+              {
+                "name": "review",
+                "value": "=={{ $json.r4_review }}"
+              },
+              {
+                "name": "verdict",
+                "value": "=={{ $json.r4_verdict }}"
+              },
+              {
+                "name": "concerns_count",
+                "value": "=={{ $json.r4_concerns_count || 0 }}"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 5000
+          }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          -832,
+          144
+        ],
+        "id": "99727e3c-7b04-4807-8a69-d883c87a6ca5",
+        "name": "Emit User Reviewer Event"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "=http://host.docker.internal:3001/events/{{ $('Code - Validate Inputs').first().json.project }}/phase4/complete",
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "verdict",
+                "value": "=={{ $json.verdict }}"
+              },
+              {
+                "name": "summary",
+                "value": "=={{ $json.chairSummary || 'Council review complete' }}"
+              },
+              {
+                "name": "concerns",
+                "value": "=={{ $json.totalConcerns || 0 }}"
+              },
+              {
+                "name": "endorsements",
+                "value": "=={{ $json.totalEndorsements || 0 }}"
+              }
+            ]
+          },
+          "options": {
+            "timeout": 5000
+          }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.4,
+        "position": [
+          -64,
+          400
+        ],
+        "id": "fb1caa23-55a4-4260-9883-8d6cd6b3c696",
+        "name": "Emit Council Complete Event"
+      }
+    ],
+    "connections": {
+      "Webhook - Get Review UI": {
+        "main": [
+          [
+            {
+              "node": "Respond - Review UI",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Webhook - Council Action": {
+        "main": [
+          [
+            {
+              "node": "Code - Validate Inputs",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Validate Inputs": {
+        "main": [
+          [
+            {
+              "node": "IF - Route Action",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP - Ollama Health": {
+        "main": [
+          [
+            {
+              "node": "IF - Ollama Reachable",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF - Ollama Reachable": {
+        "main": [
+          [
+            {
+              "node": "IF - Route Action",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond - Ollama Error",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF - Route Action": {
+        "main": [
+          [
+            {
+              "node": "Read - PRD File",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "IF - Is Decide",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF - Is Decide": {
+        "main": [
+          [
+            {
+              "node": "Read - Council for Decision",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Read - Council for Gate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Validate PRD Contract": {
+        "main": [
+          [
+            {
+              "node": "IF - PRD Valid",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF - PRD Valid": {
+        "main": [
+          [
+            {
+              "node": "Code - Load Reviewers",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Respond - PRD Invalid",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Load Reviewers": {
+        "main": [
+          [
+            {
+              "node": "Code - Build R1 Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Build R1 Request": {
+        "main": [
+          [
+            {
+              "node": "HTTP - Run R1 (Tech)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP - Run R1 (Tech)": {
+        "main": [
+          [
+            {
+              "node": "Code - Save R1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Save R1": {
+        "main": [
+          [
+            {
+              "node": "Emit Tech Reviewer Event",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Build R2 Request": {
+        "main": [
+          [
+            {
+              "node": "HTTP - Run R2 (Sec)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP - Run R2 (Sec)": {
+        "main": [
+          [
+            {
+              "node": "Code - Save R2",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Save R2": {
+        "main": [
+          [
+            {
+              "node": "Emit Security Reviewer Event",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Build R3 Request": {
+        "main": [
+          [
+            {
+              "node": "HTTP - Run R3 (Exec)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP - Run R3 (Exec)": {
+        "main": [
+          [
+            {
+              "node": "Code - Save R3",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Save R3": {
+        "main": [
+          [
+            {
+              "node": "Emit Executive Reviewer Event",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Build R4 Request": {
+        "main": [
+          [
+            {
+              "node": "HTTP - Run R4 (User)",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP - Run R4 (User)": {
+        "main": [
+          [
+            {
+              "node": "Code - Save R4",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Save R4": {
+        "main": [
+          [
+            {
+              "node": "Emit User Reviewer Event",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP - Warm Quality Model": {
+        "main": [
+          [
+            {
+              "node": "Code - Build Chair Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Build Chair Request": {
+        "main": [
+          [
+            {
+              "node": "HTTP - Run Chair",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP - Run Chair": {
+        "main": [
+          [
+            {
+              "node": "Code - Assemble Output",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Assemble Output": {
+        "main": [
+          [
+            {
+              "node": "Write Binary File - Council Review",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Handle User Decision": {
+        "main": [
+          [
+            {
+              "node": "Respond - Decision Recorded",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Handle Gate Decision": {
+        "main": [
+          [
+            {
+              "node": "Respond - Gate Recorded",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read - Council for Decision": {
+        "main": [
+          [
+            {
+              "node": "Code - Handle User Decision",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read - Council for Gate": {
+        "main": [
+          [
+            {
+              "node": "Code - Handle Gate Decision",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read - PRD File": {
+        "main": [
+          [
+            {
+              "node": "Code - Validate PRD Contract",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Check If Accepted": {
+        "main": [
+          [
+            {
+              "node": "IF - Should Revise PRD",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF - Should Revise PRD": {
+        "main": [
+          [
+            {
+              "node": "Read Binary File - Current PRD",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Read Binary File - Current PRD": {
+        "main": [
+          [
+            {
+              "node": "Code - Parse Current PRD",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Parse Current PRD": {
+        "main": [
+          [
+            {
+              "node": "Code - Build Revision Prompt",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Build Revision Prompt": {
+        "main": [
+          [
+            {
+              "node": "HTTP - Ollama Revise PRD",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "HTTP - Ollama Revise PRD": {
+        "main": [
+          [
+            {
+              "node": "Code - Parse Revised PRD",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Parse Revised PRD": {
+        "main": [
+          [
+            {
+              "node": "Write Binary File - Save Revised PRD",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Write Binary File - Save Revised PRD": {
+        "main": [
+          [
+            {
+              "node": "Write Binary File - Update Handoff",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Code - Check If Reconvene": {
+        "main": [
+          [
+            {
+              "node": "IF - Should Reconvene",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "IF - Should Reconvene": {
+        "main": [
+          [
+            {
+              "node": "HTTP - Ollama Health",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Write Binary File - Council Review": {
+        "main": [
+          [
+            {
+              "node": "Emit Council Complete Event",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Emit Tech Reviewer Event": {
+        "main": [
+          [
+            {
+              "node": "Code - Build R2 Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Emit Security Reviewer Event": {
+        "main": [
+          [
+            {
+              "node": "Code - Build R3 Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Emit Executive Reviewer Event": {
+        "main": [
+          [
+            {
+              "node": "Code - Build R4 Request",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Emit User Reviewer Event": {
+        "main": [
+          [
+            {
+              "node": "HTTP - Warm Quality Model",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Emit Council Complete Event": {
+        "main": [
+          [
+            {
+              "node": "Respond - Review Done",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Brian Judd",
+    "name": "Version 9bf41692",
+    "description": "",
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-03-10T02:17:19.287Z",
+        "id": 26,
+        "workflowId": "Aj51idq5bxiC7Uhi",
+        "versionId": "9bf41692-a07b-4eb6-844f-4d9061d1891e",
+        "event": "activated",
+        "userId": "90397d95-49a3-424f-9a9b-66990dc3616e"
+      }
+    ]
+  }
+}
